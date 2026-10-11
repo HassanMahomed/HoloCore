@@ -20,7 +20,7 @@ from typing import Any, Mapping
 from .archive import Archive
 
 
-APP_VERSION = "0.7.1"
+APP_VERSION = "0.7.2"
 SCHEMA_VERSION = 1
 CONFIG_HOME_ENV = "HOLOCORE_CONFIG_HOME"
 POINTER_FILENAME = "home.json"

@@ -2,7 +2,7 @@
 
 ![HoloCore Context Engine icon](docs/assets/holocore-icon.png)
 
-**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `0.7.1` combines verified project knowledge, a structural code map, conversation memory, and a searchable agent activity ledger behind one CLI, MCP server, and browser Console.
+**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `0.7.2` combines verified project knowledge, a structural code map, conversation memory, and a searchable agent activity ledger behind one CLI, MCP server, and browser Console.
 
 ![HoloCore Context Engine checks Atlas, reads matching Archive knowledge, optionally recalls Animus history, and sends focused context to reduce input tokens](docs/assets/holocore-context-engine-token-savings.png)
 
