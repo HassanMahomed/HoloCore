@@ -2,7 +2,7 @@
 
 ![HoloCore Context Engine icon](docs/assets/holocore-icon.png)
 
-**HoloCore Context Engine** is a local AI knowledge system for all your projects. Version `0.6.0` combines one shared Markdown Archive with a project structural Atlas and shared episodic Animus behind one CLI, MCP server, and browser Console.
+**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `0.7.1` combines verified project knowledge, a structural code map, conversation memory, and a searchable agent activity ledger behind one CLI, MCP server, and browser Console.
 
 ![HoloCore Context Engine checks Atlas, reads matching Archive knowledge, optionally recalls Animus history, and sends focused context to reduce input tokens](docs/assets/holocore-context-engine-token-savings.png)
 
@@ -12,13 +12,13 @@ The runtime is HoloCore-native. It does not import, launch, or require the origi
 
 ## In simple terms
 
-HoloCore gives an AI assistant three kinds of context:
+HoloCore gives an AI assistant three kinds of context, using plain names in the user interface:
 
-- **Archive is the library:** verified notes, rules, and decisions.
-- **Atlas is the map:** files, functions, dependencies, and relationships.
-- **Animus is the memory:** previous work, conversations, errors, and useful events.
+- **Knowledge:** verified notes, rules, and decisions.
+- **Code Map:** files, functions, dependencies, and relationships.
+- **Activity Memory:** previous work, conversations, errors, and useful events.
 
-You choose one **HoloCore Home**. Its `Archive` folder is one Obsidian-ready vault shared by every registered project. Each project is a **World** with its own section in that vault and its own private generated runtime.
+You choose one **HoloCore Home**. Its `Archive` folder is one Obsidian-ready vault shared by every registered project. Internal storage keeps the older `Archive`, `Atlas`, `Animus`, and `World` names so existing installations and integrations remain compatible.
 
 ```text
 <Home>/
@@ -56,12 +56,17 @@ On the HoloCore repository, the corrected relevance-gated route returned fewer e
 
 HoloCore used approximately 35.5% fewer retrieval tokens than Graphify across five code questions. Code queries used `check → Atlas`; architecture and prior-work queries used bounded `check → Atlas → Archive → Animus` routes. Full timings and reproduction details are in the [plain-text benchmark results](benchmarks/holocore-vs-graphify-2026-07-16.txt).
 
-## Automatic memory
+To view every registered project's structural graph in Obsidian, run `holocore obsidian-vault`, then open the generated `HoloCore Obsidian Vault` folder inside HoloCore Home as the Obsidian vault.
+
+The shared Obsidian view can refresh automatically. `holocore watch --install --home "C:\\Brains\\Holocore Home"` installs a Windows logon trigger; it polls registered Worlds every 30 seconds, reconciles changed Worlds, and regenerates `HoloCore Obsidian Vault`. The watcher reads World sources and Atlas inputs only, so its generated Markdown cannot trigger a refresh loop. `holocore watch --uninstall` removes the trigger.
+
+## Automatic memory and agent activity
 
 Setup installs local capture hooks for supported clients:
 
-- Claude Code captures at `SessionEnd`.
-- Codex captures at `Stop`.
+- Claude Code and Codex record session, prompt, tool, subagent, stop, and session-end events supported by the client.
+- Conversation content is captured at safe transcript checkpoints.
+- The activity ledger records the agent, action, status, time, and affected file paths without storing tool payloads, prompts, secrets, or authorization values.
 
 The hook reads only new transcript content, stores a raw audit under the project, distills useful Memory Shards into local Animus, and automatically promotes useful facts, decisions, preferences, entities, and summaries into the active World's Archive. Promotion uses deterministic names and deduplication so the same extraction is not repeatedly added.
 
@@ -70,12 +75,24 @@ Hooks are installed automatically but require client trust once:
 - In Claude Code, restart the project and use `/mcp` to approve or confirm the HoloCore server.
 - In Codex, restart or reopen the project and use `/hooks` to review and trust the HoloCore Stop hook.
 
-## Quick start
+## One-line Windows install
+
+Open PowerShell and run:
+
+```powershell
+irm https://raw.githubusercontent.com/HassanMahomed/HoloCore/main/install.ps1 | iex
+```
+
+The installer downloads the release asset from GitHub, verifies its SHA-256 checksum when available, creates HoloCore Home, adds `holocore` to the user PATH, detects supported AI clients, and asks which detected clients to connect. No Python installation is required. On upgrades, HoloCore scans again so clients installed later can be connected to every registered project.
+
+The downloadable Windows executable and checksum are also available on the [GitHub Releases page](https://github.com/HassanMahomed/HoloCore/releases). See the [Windows installation guide](docs/windows-installation.md) for unattended options, upgrades, and removal.
+
+## Developer install
 
 Install from Git:
 
 ```powershell
-uv tool install "git+https://github.com/VenomD846/HoloCore.git"
+uv tool install "git+https://github.com/HassanMahomed/HoloCore.git"
 ```
 
 Set up the first project and explicitly choose the shared Home:
@@ -104,10 +121,9 @@ holocore search "Why did we choose SQLite?"
 holocore console                    # open the local browser Console
 ```
 
-The Console brings chats, Memory Shards, Decks and Signal Chronicles, the
-World wiki, exact storage locations, command invocations, and the Atlas link
-into one local view. Wiki edits are validated through the Archive API; captured
-chats remain immutable.
+The Console brings conversations, memories, verified knowledge, the code map,
+agent runs, affected items, storage locations, and AI commands into one local
+view. Knowledge edits are validated; captured conversations remain immutable.
 
 Use the World selector in the Console header to move between registered
 projects without restarting the server. The Commands tab is grouped by
@@ -115,23 +131,20 @@ purpose; the other tabs are scoped to the selected World.
 
 Console panels and triggers:
 
-- **Chat Deck** — captured provider transcripts, dates, sources, and searchable text; populated by `UserPromptSubmit`, `Stop`, or `SessionEnd` hooks.
-- **Animus** — Memory Shards, Decks, Signal Chronicles, provenance, and episodic history; read by HoloCore retrieval and MCP.
-- **Archive** — editable AI-first Markdown wiki with managed/user-owned provenance and source links.
-- **Atlas** — Signals, Constellations, relationships, paths, explanations, and community clusters; refreshed by ingest or `atlas-refresh`.
-  The Console also embeds a Solar System Atlas: one galaxy-level World node per registered project with that World's Signals and relationships beneath it.
-- **Locations** — exact Home, World, Animus, Archive, Atlas, raw-chat, and connection paths.
+- **Conversations** — captured provider transcripts, dates, sources, and searchable text.
+- **Activity** — memories, focused collections, history, provenance, and episodic context.
+- **Knowledge** — editable Markdown notes with managed/user-owned provenance and source links.
+- **Code Map** — project items, relationships, paths, explanations, and clusters.
+- **Agent Runs** — each agent and subagent run, its actions, status, tools, and affected items.
+- **Locations** — exact Home, project, memory, knowledge, code-map, raw-chat, and connection paths.
 - **AI Commands** — commands grouped by effect for Claude, Codex, and MCP clients.
 - **Maintenance** — ingest, resync, cleanup preview, diagnostics, migration, and freshness status.
 
-The vocabulary is consistent everywhere: a **Deck** is a bounded context inside
-a World; a **Signal** is a tracked concept, person, system, or decision; a
-**Chronicle** is the temporal history of a Signal; and a **Constellation** is a
-connected Signal graph.
+The older technical names remain accepted by the CLI and MCP API for backward compatibility, but new user-facing documentation prefers project, knowledge, code map, activity, memory, item, and cluster.
 
 Open `<Home>/Archive` as one Obsidian vault if you want Obsidian's Markdown and graph interface. Obsidian is optional; HoloCore works from the CLI and AI clients without it.
 
-## Keep every World current
+## Keep every project current
 
 ```powershell
 holocore sync-all
@@ -147,30 +160,29 @@ holocore sync-all
 
 The second command can take time because it reads each registered World's source files and rebuilds its Atlas. Press `Ctrl+C` to stop a refresh safely; the installed CLI remains updated. Close active Claude/Codex MCP sessions before updating if Windows reports that `holocore.exe` is in use. Missing project folders are reported without stopping other Worlds.
 
+Optional automatic updates are deliberately session-driven, not scheduled:
+
+```powershell
+holocore auto-update --enable
+holocore auto-update                 # show status
+holocore auto-update --check-now
+```
+
+HoloCore checks GitHub at most once per day after it records real activity. Offline failures are quiet and retried later. If an update is available, it is installed only after the AI session ends. There is no resident background process and no Windows Scheduled Task.
+
 ## AI clients
 
-Setup creates non-destructive project integrations for Claude Code, Codex, Gemini, Cursor, and OpenCode:
+Setup detects Claude Code, Codex, Gemini CLI, Cursor, and OpenCode, then asks which detected clients to connect. Setup creates non-destructive project integrations:
 
 - Claude receives `.mcp.json`, project slash commands and skills, plus a `SessionEnd` capture hook.
 - Codex receives `.codex/config.toml`, `$`-invoked skills under `.agents/skills`, plus a `Stop` capture hook.
 - Gemini, Cursor, and OpenCode receive their native project MCP and command formats.
 
-Use `holocore connect` to add or repair integrations after installing another client. Existing unrelated settings are preserved; invalid files are skipped with a warning rather than overwritten.
+Use `holocore detect-clients` to inspect detection and `holocore connect` to add or repair integrations after installing another client. `holocore update` and the Windows upgrade flow rescan automatically. Existing unrelated settings are preserved; invalid files are skipped with a warning rather than overwritten.
 
-## Canonical vocabulary
+## Legacy/internal vocabulary
 
-- **Archive** = verified knowledge.
-- **Atlas** = structural map.
-- **Animus** = remembered history.
-- **World** = project.
-- **Sector** = area inside a project.
-- **Memory Shard** = raw remembered fragment.
-- **Archive Entry** = polished durable note.
-- **Signal** = one mapped thing.
-- **Constellation** = group of related mapped things.
-- **Deck** = bounded context inside a World for related memories.
-- **Signal** = a named concept, person, system, or decision tracked over time.
-- **Chronicle** = the time-ordered assertions and changes for a Signal.
+Existing installations, paths, and APIs keep these mappings: **Archive = Knowledge**, **Atlas = Code Map**, **Animus = Activity Memory**, **World = Project**, **Sector = Area**, **Memory Shard = Memory**, **Archive Entry = Knowledge Note**, **Signal = Item**, **Constellation = Cluster**, **Deck = Collection**, and **Chronicle = History**.
 
 ## Documentation
 
@@ -181,6 +193,8 @@ The current release includes Atlas clustering, audits, explain/path analysis and
 - [Visual guide](docs/visual-guide.md)
 - [User guide](docs/user-guide.md)
 - [Installation guide](docs/installation.md)
+- [One-line Windows installation](docs/windows-installation.md)
+- [Agent activity ledger](docs/agent-activity.md)
 - [Prerequisites and optional graph tools](docs/prerequisites.md)
 - [Workflow guide](docs/workflows.md)
 - [Slash-command and skill reference](docs/slash-commands.md)

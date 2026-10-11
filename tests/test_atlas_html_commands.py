@@ -70,7 +70,7 @@ def test_command_catalog_has_required_cross_platform_commands() -> None:
         "init", "search", "remember", "recall", "animus-sync", "animus-checkpoint", "diary", "timeline", "consolidate", "animus-export",
         "atlas-refresh", "atlas-view", "atlas-explain", "atlas-path", "atlas-affected", "atlas-neighborhood", "atlas-constellations", "atlas-audit", "atlas-export",
         "archive-search", "archive-create", "status", "doctor", "setup", "connect",
-        "home", "worlds", "global-graph", "sync-all", "update", "install-check", "uninstall", "cleanup", "ingest", "inbox-sync", "paths", "open-archive",
+        "home", "worlds", "global-graph", "obsidian-vault", "watch", "sync-all", "update", "install-check", "uninstall", "cleanup", "ingest", "inbox-sync", "paths", "open-archive",
             "animus-decks", "animus-signal", "animus-chronicle", "console",
     }
     assert get_command("holocore-atlas-view").invocation.startswith("holocore atlas-view")

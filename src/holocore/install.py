@@ -18,6 +18,47 @@ from .layout import world_paths
 from .policy import render_policy
 
 
+CLIENT_PROBES = {
+    "claude": ("claude", Path.home() / ".claude"),
+    "codex": ("codex", Path(os.getenv("CODEX_HOME", Path.home() / ".codex"))),
+    "cursor": ("cursor", Path(os.getenv("APPDATA", Path.home())) / "Cursor"),
+    "gemini": ("gemini", Path.home() / ".gemini"),
+    "opencode": ("opencode", Path.home() / ".config" / "opencode"),
+}
+
+
+def _client_root() -> Path:
+    """Return the real user profile, or an isolated root used by test/portable environments."""
+    explicit = os.getenv("HOLOCORE_CLIENT_CONFIG_ROOT")
+    if explicit:
+        return Path(explicit).expanduser().resolve()
+    config_home = os.getenv("HOLOCORE_CONFIG_HOME")
+    if config_home:
+        # HOLOCORE_CONFIG_HOME is used for isolated/portable HoloCore runs.
+        # Keep client mutations in the same boundary instead of touching the
+        # signed-in user's real Claude, Codex, Cursor, or Gemini settings.
+        return Path(config_home).expanduser().resolve() / "clients"
+    return Path.home()
+
+
+def detect_installed_clients() -> dict[str, dict[str, object]]:
+    """Detect supported local AI clients without changing their configuration."""
+    result: dict[str, dict[str, object]] = {}
+    for client, (command, config_path) in CLIENT_PROBES.items():
+        executable = shutil.which(command)
+        evidence: list[str] = []
+        if executable:
+            evidence.append(str(Path(executable)))
+        if config_path.exists():
+            evidence.append(str(config_path))
+        if client == "cursor":
+            local_cursor = Path(os.getenv("LOCALAPPDATA", Path.home())) / "Programs" / "cursor" / "Cursor.exe"
+            if local_cursor.is_file():
+                evidence.append(str(local_cursor))
+        result[client] = {"installed": bool(evidence), "evidence": evidence}
+    return result
+
+
 @dataclass
 class BootstrapReport:
     root: Path
@@ -52,9 +93,10 @@ class BootstrapReport:
 def _mcp_server(root: Path) -> dict:
     # Using the exact Python environment is more reliable than assuming an AI
     # desktop/client inherited the shell PATH containing `holocore-mcp`.
+    frozen = bool(getattr(sys, "frozen", False))
     return {
         "command": str(Path(sys.executable).resolve()),
-        "args": ["-m", "holocore.mcp_server"],
+        "args": ["mcp"] if frozen else ["-m", "holocore.mcp_server"],
         "cwd": str(root),
     }
 
@@ -179,12 +221,9 @@ def _merge_capture_hook(target: Path, event: str, client: str, created: list[Pat
             warnings.append(f"Could not install automatic {client} capture hook because {target} is not a JSON object")
             return
     executable = str(Path(sys.executable).resolve())
-    command = (
-        f'"{executable}" -m holocore.capture_hook --client {client}'
-        if " " in executable
-        else f"{executable} -m holocore.capture_hook --client {client}"
-    )
-    handler = {"type": "command", "command": command, "timeout": 60, "statusMessage": "Saving conversation to HoloCore"}
+    module_args = f"capture-hook --client {client}" if getattr(sys, "frozen", False) else f"-m holocore.capture_hook --client {client}"
+    command = f'"{executable}" {module_args}' if " " in executable else f"{executable} {module_args}"
+    handler = {"type": "command", "command": command, "timeout": 15, "async": event != "SessionEnd", "statusMessage": "Recording activity in HoloCore"}
     if client == "codex":
         handler["commandWindows"] = command
     hooks = data.setdefault("hooks", {})
@@ -198,11 +237,13 @@ def _merge_capture_hook(target: Path, event: str, client: str, created: list[Pat
         warnings.append(f"Could not install automatic {client} capture hook because hooks.{event} in {target} is not a list")
         return
     for group in groups:
-        if "holocore.capture_hook" not in json.dumps(group):
+        serialized = json.dumps(group)
+        if "holocore.capture_hook" not in serialized and "capture-hook --client" not in serialized:
             continue
         changed = False
         for item in group.get("hooks", []) if isinstance(group, dict) else []:
-            if isinstance(item, dict) and item.get("type") == "command" and "holocore.capture_hook" in str(item.get("command", "")):
+            item_command = str(item.get("command", "")) if isinstance(item, dict) else ""
+            if isinstance(item, dict) and item.get("type") == "command" and ("holocore.capture_hook" in item_command or "capture-hook --client" in item_command):
                 if any(item.get(key) != value for key, value in handler.items()):
                     item.update(handler); changed = True
         if changed:
@@ -287,17 +328,18 @@ def bootstrap_project(
 
     if "codex" in selected:
         _merge_codex_toml(connections / ".codex/config.toml", server, created, updated, skipped)
-        # Home keeps the template; Codex executes hooks only from its active
-        # user configuration layer.
-        active_codex = Path(os.getenv("CODEX_HOME", Path.home() / ".codex")) / "hooks.json"
-        _merge_capture_hook(active_codex, "UserPromptSubmit", "codex", created, updated, skipped, warnings)
-        _merge_capture_hook(active_codex, "Stop", "codex", created, updated, skipped, warnings)
-        _merge_capture_hook(connections / ".codex/hooks.json", "UserPromptSubmit", "codex", created, updated, skipped, warnings)
-        _merge_capture_hook(connections / ".codex/hooks.json", "Stop", "codex", created, updated, skipped, warnings)
+        active_codex_home = Path(os.getenv("CODEX_HOME", _client_root() / ".codex"))
+        _merge_codex_toml(active_codex_home / "config.toml", server, created, updated, skipped)
+        active_codex = active_codex_home / "hooks.json"
+        for event in ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "SubagentStart", "SubagentStop", "Stop", "SessionEnd"):
+            _merge_capture_hook(active_codex, event, "codex", created, updated, skipped, warnings)
+            _merge_capture_hook(connections / ".codex/hooks.json", event, "codex", created, updated, skipped, warnings)
     if "claude" in selected:
         _merge_json(connections / ".mcp.json", mcp, created, updated, skipped, warnings)
-        _merge_capture_hook(connections / ".claude/settings.json", "UserPromptSubmit", "claude", created, updated, skipped, warnings)
-        _merge_capture_hook(connections / ".claude/settings.json", "SessionEnd", "claude", created, updated, skipped, warnings)
+        _merge_json(_client_root() / ".claude.json", mcp, created, updated, skipped, warnings)
+        for event in ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "SubagentStart", "SubagentStop", "Stop", "SessionEnd"):
+            _merge_capture_hook(connections / ".claude/settings.json", event, "claude", created, updated, skipped, warnings)
+            _merge_capture_hook(_client_root() / ".claude/settings.json", event, "claude", created, updated, skipped, warnings)
         _write_generated(
             connections / ".claude/commands/holocore.md",
             """---
@@ -315,15 +357,15 @@ knowledge search or `/holocore-doctor` to diagnose the MCP connection.
         )
     if "gemini" in selected:
         _merge_json(connections / ".gemini/settings.json", mcp, created, updated, skipped, warnings)
+        _merge_json(_client_root() / ".gemini/settings.json", mcp, created, updated, skipped, warnings)
     if "cursor" in selected:
         _merge_json(connections / ".cursor/mcp.json", mcp, created, updated, skipped, warnings)
+        _merge_json(_client_root() / ".cursor/mcp.json", mcp, created, updated, skipped, warnings)
         _write_generated(connections / ".cursor/rules/holocore.mdc", instructions, created, updated, skipped)
     if "opencode" in selected:
-        _merge_json(
-            connections / "opencode.json",
-            {"mcp": {"holocore": {"type": "local", "command": [server["command"], *server["args"]], "cwd": str(home_manager.home)}}},
-            created, updated, skipped, warnings,
-        )
+        opencode_patch = {"mcp": {"holocore": {"type": "local", "command": [server["command"], *server["args"]], "cwd": str(home_manager.home)}}}
+        _merge_json(connections / "opencode.json", opencode_patch, created, updated, skipped, warnings)
+        _merge_json(_client_root() / ".config/opencode/opencode.json", opencode_patch, created, updated, skipped, warnings)
 
     for platform, command_files in render_all_commands().items():
         if platform in selected:

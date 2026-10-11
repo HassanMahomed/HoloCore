@@ -10,6 +10,7 @@ from .home import HomeManager
 from .lifecycle import sync_all
 from .animus import Animus
 from .animus_mining import AnimusMiner, MiningOptions
+from . import __version__
 
 
 def _tool(name, description, properties=None, required=None):
@@ -160,7 +161,7 @@ def main() -> int:
         request = {}
         try:
             request = json.loads(line); method = request.get("method"); params = request.get("params", {})
-            if method == "initialize": result = {"protocolVersion": "2025-06-18", "capabilities": {"tools": {}, "prompts": {}}, "serverInfo": {"name": "holocore", "version": "0.5.0"}}
+            if method == "initialize": result = {"protocolVersion": "2025-06-18", "capabilities": {"tools": {}, "prompts": {}}, "serverInfo": {"name": "holocore", "version": __version__}}
             elif method == "tools/list": result = {"tools": TOOLS}
             elif method == "tools/call":
                 arguments = params.get("arguments", {})
@@ -168,8 +169,16 @@ def main() -> int:
             elif method == "prompts/list": result = {"prompts": PROMPTS}
             elif method == "prompts/get": result = get_prompt(params["name"], params.get("arguments", {}))
             else: result = {}
+            # JSON-RPC notifications (including MCP's notifications/initialized)
+            # must not receive a response.  Responding with id=null produces an
+            # invalid MCP message for clients such as Claude Desktop/Cowork.
+            if "id" not in request or request["id"] is None:
+                continue
             response = {"jsonrpc": "2.0", "id": request.get("id"), "result": result}
-        except Exception as exc: response = {"jsonrpc": "2.0", "id": request.get("id"), "error": {"code": -32000, "message": str(exc)}}
+        except Exception as exc:
+            if "id" not in request or request["id"] is None:
+                continue
+            response = {"jsonrpc": "2.0", "id": request.get("id"), "error": {"code": -32000, "message": str(exc)}}
         print(json.dumps(response), flush=True)
     return 0
 

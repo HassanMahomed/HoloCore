@@ -25,6 +25,34 @@ PLATFORMS = ("claude", "codex", "gemini", "cursor", "opencode", "generic")
 
 def _platform_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--platform", action="append", choices=PLATFORMS, help="Configure only this AI client (repeatable). Default: all clients.")
+    parser.add_argument("-y", "--yes", action="store_true", help="Connect every detected AI client without prompting")
+
+
+def _selected_platforms(explicit: list[str] | None, assume_yes: bool) -> list[str]:
+    if explicit:
+        return list(dict.fromkeys(explicit))
+    from .install import detect_installed_clients
+
+    detected = detect_installed_clients()
+    available = [name for name, detail in detected.items() if detail["installed"]]
+    if assume_yes or not sys.stdin.isatty():
+        return available
+    if not available:
+        print("No supported AI clients were detected. HoloCore will install its local data folders only.")
+        return []
+    print("Detected AI clients:")
+    selected: list[str] = []
+    for name in available:
+        evidence = ", ".join(str(item) for item in detected[name]["evidence"])
+        try:
+            answer = input(f"  Connect {name.title()}? [Y/n] ({evidence}) ").strip().casefold()
+        except EOFError:
+            # Redirected or headless callers cannot answer a prompt. Preserve
+            # the documented default and select the clients already detected.
+            return available
+        if answer in {"", "y", "yes"}:
+            selected.append(name)
+    return selected
 
 
 def _selected_home(explicit: str | None) -> Path:
@@ -43,23 +71,23 @@ def _format_setup(value: dict) -> str:
     atlas = value["atlas"]
     return f"""HoloCore is ready.
 
-World
+Project
   {value['world']}
 
 Your data
   HoloCore Home             {paths['home']}
-  Shared Obsidian vault     {paths['archive']}
-  This World's Archive     {paths['world_archive']}
-  Atlas graph               {paths['atlas_json']} ({atlas['nodes']} signals)
-  Atlas visual              {paths['atlas_html']}
-  Memory Shards             {paths['memory_shards']}
+  Shared knowledge vault    {paths['archive']}
+  This project's knowledge  {paths['world_archive']}
+  Code map                  {paths['atlas_json']} ({atlas['nodes']} items)
+  Code map visual           {paths['atlas_html']}
+  Activity memory           {paths['memory_shards']}
   Raw chat audit            {paths['raw_chats']}
   Source Inbox              {paths['ingest_inbox']}
   Immutable raw sources     {paths['raw_sources']}
 
 AI access
   One shared connection bundle  {paths['home']}/Connections
-  MCP tools accept the active World root, so clients connect once at user scope.
+  MCP tools accept the active project root, so clients connect once at user scope.
   Project-local connection, skill, hook, and policy copies are no longer generated.
 
 Obsidian is optional. To use it, open this folder as a vault:
@@ -91,10 +119,10 @@ def _format_status(value: dict) -> str:
     codex = value["integrations"]["codex"]
     return f"""HoloCore {'is ready' if ready else 'needs attention'}.
 
-World:   {value['world']}
-Archive: {value['paths']['archive']}
-Atlas:   {value['paths']['atlas_json']} ({'fresh' if value['atlas'].get('fresh') else 'missing or stale'})
-Animus:  {value['paths']['memory_shards']}
+Project:         {value['world']}
+Knowledge:       {value['paths']['archive']}
+Code map:        {value['paths']['atlas_json']} ({'fresh' if value['atlas'].get('fresh') else 'missing or stale'})
+Activity memory: {value['paths']['memory_shards']}
 
 AI connections
   Claude Code: {'connected' if claude['connected'] else claude['detail']} · capture {'on' if claude['capture'] else 'off'} · {claude['slash_commands']} slash commands · {claude['skills']} skills
@@ -119,7 +147,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="Print stable machine-readable JSON")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    setup = sub.add_parser("setup", help="One-command World setup and AI connection")
+    setup = sub.add_parser("setup", help="Set up a Project and connect detected AI clients")
     setup.add_argument("path", nargs="?")
     setup.add_argument("--git", action="store_true", help="Initialize Git if needed (off by default)")
     setup.add_argument("--home", help="Shared HoloCore Home directory; first setup prompts when omitted")
@@ -136,6 +164,7 @@ def main() -> int:
     sub.add_parser("paths", help="Show every HoloCore data and integration location")
     sub.add_parser("open-archive", help="Open the visible Archive folder")
     sub.add_parser("status")
+    sub.add_parser("detect-clients", help="Find supported AI clients installed on this computer")
     console = sub.add_parser("console", help="Open the local HoloCore browser Console")
     console.add_argument("--port", type=int, default=0, help="Local port (0 chooses a free port)")
     console.add_argument("--no-open", action="store_true", help="Print the URL without opening a browser")
@@ -144,12 +173,28 @@ def main() -> int:
     home_command = sub.add_parser("home", help="Show or select the shared HoloCore Home")
     home_command.add_argument("path", nargs="?")
     home_command.add_argument("--path", dest="home_path", help="Shared HoloCore Home directory (alternative to the positional path)")
-    sub.add_parser("worlds", help="List projects linked to the shared brain")
-    global_graph = sub.add_parser("global-graph", help="Build an Atlas-only graph across registered Worlds")
+    sub.add_parser("worlds", aliases=["projects"], help="List projects linked to HoloCore Home")
+    global_graph = sub.add_parser("global-graph", help="Build one code map across registered projects")
     global_graph.add_argument("--output")
-    sub.add_parser("sync-all", help="Reconcile every registered World")
+    obsidian_vault = sub.add_parser("obsidian-vault", help="Build the Obsidian vault view of all registered Worlds")
+    obsidian_vault.add_argument("--output", help="Optional output folder; defaults to HoloCore Obsidian Vault in Home")
+    watch = sub.add_parser("watch", help="Automatically refresh every World and the Obsidian vault")
+    watch.add_argument("--home", help="Shared HoloCore Home directory")
+    watch.add_argument("--interval", type=float, default=30.0, help="Polling interval in seconds (default: 30)")
+    watch.add_argument("--once", action="store_true", help="Run one change check and exit")
+    watch.add_argument("--install", action="store_true", help="Install an automatic Windows logon task")
+    watch.add_argument("--uninstall", action="store_true", help="Remove the automatic Windows logon task")
+    sync_all_command = sub.add_parser("sync-all", help="Reconcile every registered Project")
+    sync_all_command.add_argument("--detected", action="store_true", help="Connect only AI clients detected on this computer")
+    sync_all_command.add_argument("-y", "--yes", action="store_true", help="Accept all detected AI clients without prompting")
     update = sub.add_parser("update", help="Update HoloCore and reconcile every World")
     update.add_argument("--no-sync", action="store_true", help="Only update the CLI; skip the potentially lengthy World/Atlas reconciliation")
+    update.add_argument("-y", "--yes", action="store_true", help="Connect every detected AI client without prompting")
+    auto_update = sub.add_parser("auto-update", help="Enable, disable, check, or inspect lightweight session-driven updates")
+    auto_group = auto_update.add_mutually_exclusive_group()
+    auto_group.add_argument("--enable", action="store_true")
+    auto_group.add_argument("--disable", action="store_true")
+    auto_group.add_argument("--check-now", action="store_true")
     sub.add_parser("install-check", help="Show installed version and safe upgrade/uninstall commands")
     sub.add_parser("uninstall", help="Uninstall the HoloCore CLI while preserving project and Home data")
     cleanup = sub.add_parser("cleanup", help="Safely remove legacy HoloCore files from this project")
@@ -192,6 +237,25 @@ def main() -> int:
     promote.add_argument("--scope", choices=("docs", "all"), default="docs", help="Promote documentation only (default) or all supported text")
     promote.add_argument("--dry-run", action="store_true", help="Plan changes without writing files")
     promote.add_argument("--no-summarize", action="store_true", help="Skip local-AI reasoning and preserve a deterministic excerpt")
+    knowledge = sub.add_parser("knowledge", help="Search or add verified project knowledge")
+    knowledge_sub = knowledge.add_subparsers(dest="knowledge_command", required=True)
+    knowledge_search = knowledge_sub.add_parser("search"); knowledge_search.add_argument("query")
+    knowledge_add = knowledge_sub.add_parser("add"); knowledge_add.add_argument("path"); knowledge_add.add_argument("content")
+    code_map = sub.add_parser("map", help="Explore the project code map")
+    map_sub = code_map.add_subparsers(dest="map_command", required=True)
+    map_sub.add_parser("view")
+    map_search = map_sub.add_parser("search"); map_search.add_argument("query")
+    memory = sub.add_parser("memory", help="Search or add project memory")
+    memory_sub = memory.add_subparsers(dest="memory_command", required=True)
+    memory_search = memory_sub.add_parser("search"); memory_search.add_argument("query"); memory_search.add_argument("--area", dest="sector")
+    memory_add = memory_sub.add_parser("add"); memory_add.add_argument("content"); memory_add.add_argument("--area", dest="sector", default="general"); memory_add.add_argument("--source", default="cli")
+    runs = sub.add_parser("runs", help="Inspect recorded agent runs and actions")
+    runs_sub = runs.add_subparsers(dest="runs_command", required=True)
+    runs_list = runs_sub.add_parser("list"); runs_list.add_argument("--limit", type=int, default=100)
+    runs_show = runs_sub.add_parser("show"); runs_show.add_argument("run_id"); runs_show.add_argument("--limit", type=int, default=500)
+    sub.add_parser("activity-status", help="Show Agent Activity Ledger counts")
+    capture_command = sub.add_parser("capture-hook", help=argparse.SUPPRESS); capture_command.add_argument("--client", choices=("claude", "codex"), required=True)
+    sub.add_parser("mcp", help=argparse.SUPPRESS)
     args = parser.parse_args()
     root = Path(getattr(args, "path", None) or args.root).resolve() if args.command in {"setup", "init", "connect"} else Path(args.root).resolve()
 
@@ -199,6 +263,28 @@ def main() -> int:
         from .cleanup import cleanup_legacy
         value = cleanup_legacy(root, apply=args.apply)
         print(json.dumps(value, indent=2, default=str))
+        return 0
+    if args.command == "capture-hook":
+        from .capture_hook import run
+        try:
+            payload = json.loads(sys.stdin.read() or "{}")
+            run(payload if isinstance(payload, dict) else {}, args.client)
+            return 0
+        except Exception:
+            return 0
+    if args.command == "mcp":
+        from .mcp_server import main as mcp_main
+        return mcp_main()
+    if args.command == "detect-clients":
+        from .install import detect_installed_clients
+        value = detect_installed_clients()
+        if args.json:
+            print(json.dumps(value, indent=2, default=str))
+        else:
+            for name, detail in value.items():
+                state = "detected" if detail["installed"] else "not found"
+                evidence = f" ({', '.join(detail['evidence'])})" if detail["evidence"] else ""
+                print(f"{name.title():10} {state}{evidence}")
         return 0
     if args.command == "console":
         from .console import export_console, serve_console
@@ -219,12 +305,12 @@ def main() -> int:
         }
         print(json.dumps(value, indent=2, default=str) if args.json else f"HoloCore Home: {value['home']}\nObsidian Archive: {Path(value['home']) / 'Archive'}\nWorld registry: {Path(value['home']) / 'worlds.json'}")
         return 0
-    if args.command == "worlds":
+    if args.command in {"worlds", "projects"}:
         value = HomeManager().list_worlds()
         if args.json:
             print(json.dumps(value, indent=2, default=str))
         else:
-            lines = [f"Registered Worlds ({value['count']}):"] + [f"  {item['name']}  {item['root']}" for item in value["worlds"]]
+            lines = [f"Registered Projects ({value['count']}):"] + [f"  {item['name']}  {item['root']}" for item in value["worlds"]]
             print("\n".join(lines))
         return 0
     if args.command == "global-graph":
@@ -232,21 +318,61 @@ def main() -> int:
         manager = HomeManager()
         output = Path(args.output).expanduser() if args.output else manager.home / "global-graph" / "graph.json"
         value = build_global_graph(manager.home, output=output)
-        print(json.dumps(value, indent=2, default=str) if args.json else f"Global Atlas written to {value['path']}")
+        print(json.dumps(value, indent=2, default=str) if args.json else f"Global code map written to {value['path']}")
+        return 0
+    if args.command == "obsidian-vault":
+        from .obsidian_vault import build_obsidian_vault
+        manager = HomeManager()
+        value = build_obsidian_vault(manager.home, output=args.output)
+        print(json.dumps(value, indent=2, default=str) if args.json else f"Obsidian vault written to {value['path']}")
+        return 0
+    if args.command == "watch":
+        from .obsidian_watch import install_windows_task, uninstall_windows_task, watch_home
+        home = HomeManager(args.home).home if args.home else HomeManager().home
+        if args.uninstall:
+            value = uninstall_windows_task()
+        elif args.install:
+            value = install_windows_task(home, interval=args.interval)
+        else:
+            value = {"cycles": watch_home(home, interval=args.interval, once=args.once)}
+        print(json.dumps(value, indent=2, default=str) if args.json else (f"Automatic refresh installed: {value['task']}" if args.install else f"Automatic refresh removed: {value['task']}" if args.uninstall else f"Watch completed after {value['cycles']} cycle(s)."))
         return 0
     if args.command == "sync-all":
-        value = sync_all()
+        platforms = _selected_platforms(None, args.yes or args.json) if args.detected else None
+        value = sync_all(platforms=platforms)
         print(json.dumps(value, indent=2, default=str) if args.json else f"Reconciled {value['updated']} of {value['count']} Worlds ({value['failed']} failed).")
         return 0
     if args.command == "update":
-        value = update_install(reconcile=not args.no_sync)
-        reconciliation = value["reconciliation"]
+        value = update_install(reconcile=False)
+        detected_platforms = [] if value.get("update_queued") else _selected_platforms(None, args.yes or args.json)
+        reconciliation = None if args.no_sync or value.get("update_queued") else sync_all(platforms=detected_platforms)
+        value["detected_platforms"] = detected_platforms
+        value["reconciliation"] = reconciliation
         if args.json:
             print(json.dumps(value, indent=2, default=str))
+        elif value.get("update_queued"):
+            print("HoloCore update queued. It will install and rescan AI clients after this process exits.")
         elif reconciliation is None:
             print("HoloCore updated. World reconciliation skipped. Run `holocore sync-all` when ready.")
         else:
             print(f"HoloCore updated. Reconciled {reconciliation['updated']} of {reconciliation['count']} Worlds.")
+        return 0
+    if args.command == "auto-update":
+        from .auto_update import configure as configure_auto_update, maybe_check, status as auto_update_status
+        home = HomeManager().home
+        if args.enable:
+            value = configure_auto_update(home, enabled=True)
+        elif args.disable:
+            value = configure_auto_update(home, enabled=False)
+        elif args.check_now:
+            value = maybe_check(home, current_version=__version__, force=True)
+        else:
+            value = auto_update_status(home)
+        print(json.dumps(value, indent=2, default=str) if args.json else (
+            "Automatic updates enabled. HoloCore will check at most once per day during active sessions." if args.enable
+            else "Automatic updates disabled." if args.disable
+            else f"Automatic updates: {'enabled' if value['enabled'] else 'disabled'} | latest: {value.get('latest_version') or 'not checked'}"
+        ))
         return 0
     if args.command == "install-check":
         value = installation_check()
@@ -267,9 +393,9 @@ def main() -> int:
         return 0
 
     engine = HoloCoreEngine(root)
-    if args.command == "setup": value = engine.setup(git=args.git, platforms=args.platform, home=_selected_home(args.home))
-    elif args.command == "init": value = engine.initialize(git=not args.no_git, platforms=args.platform, home=_selected_home(args.home))
-    elif args.command == "connect": value = engine.connect(platforms=args.platform, home=_selected_home(args.home))
+    if args.command == "setup": value = engine.setup(git=args.git, platforms=_selected_platforms(args.platform, args.yes or args.json), home=_selected_home(args.home))
+    elif args.command == "init": value = engine.initialize(git=not args.no_git, platforms=_selected_platforms(args.platform, args.yes or args.json), home=_selected_home(args.home))
+    elif args.command == "connect": value = engine.connect(platforms=_selected_platforms(args.platform, args.yes or args.json), home=_selected_home(args.home))
     elif args.command in {"status", "doctor"}: value = engine.status()
     elif args.command == "search": value = [r.__dict__ for r in engine.search(args.query, args.world)]
     elif args.command == "atlas-refresh": value = engine.refresh()
@@ -346,6 +472,24 @@ def main() -> int:
             world=config.world_id or root.name,
             llm=config.llm,
         )
+    elif args.command == "knowledge":
+        value = engine.router.archive.search(args.query) if args.knowledge_command == "search" else engine.router.archive.create(args.path, args.content)
+    elif args.command == "map":
+        if args.map_command == "search":
+            value = engine.router.atlas.search(args.query)
+        else:
+            atlas = engine.ensure_atlas(); html = Path(atlas["html"]); __import__("webbrowser").open(html.resolve().as_uri()); value = {**atlas, "opened": True}
+    elif args.command == "memory":
+        if args.memory_command == "add":
+            value = engine.remember(args.content, args.sector, args.source)
+        else:
+            engine.router.ensure_memory_scope(); value = [r.__dict__ for r in engine.router.animus.search(args.query, world=engine.router.world_id, sector=args.sector)]
+    elif args.command in {"runs", "activity-status"}:
+        from .activity import ActivityLedger
+        config = Config.load(root=root); ledger = ActivityLedger(config.animus_path); project_id = config.world_id or root.name
+        if args.command == "activity-status": value = ledger.status(project_id=project_id)
+        elif args.runs_command == "list": value = ledger.runs(project_id=project_id, limit=args.limit)
+        else: value = {"run_id": args.run_id, "actions": ledger.actions(args.run_id, limit=args.limit)}
     else: raise AssertionError(args.command)
 
     if args.json:

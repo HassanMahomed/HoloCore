@@ -39,7 +39,13 @@ _ROUTE_STACK: ContextVar[tuple[tuple[str, str], ...]] = ContextVar("holocore_rou
 class Router:
     """Check-first router; selected subsystems execute once without recursion."""
 
-    HISTORY = ("previous", "prior", "earlier", "error", "debug", "conversation", "history", "remember", "before", "again", "last time", "decision", "decided", "attempt", "tried", "lesson")
+    HISTORY = ("previous", "prior", "earlier", "conversation", "history", "remember", "last time", "what did we decide", "what did we try", "past attempt", "lesson learned", "decision", "decided")
+    ARCHIVE = ("decision", "decided", "document", "documented", "guidance", "policy", "rule", "spec", "requirement", "architecture", "brief", "why")
+    MAX_ATLAS_RESULTS = 3
+    MAX_ARCHIVE_RESULTS = 3
+    MAX_ARCHIVE_SNIPPET_CHARS = 600
+    MAX_ANIMUS_RESULTS = 2
+    MAX_ANIMUS_SNIPPET_CHARS = 600
 
     def __init__(self, root: Path, config: Config | None = None):
         self.root = root.resolve()
@@ -70,6 +76,7 @@ class Router:
         missing_paths = tuple(str(path) for path in required_paths if not path.is_dir())
         atlas_status = self.atlas.freshness()
         q = query.casefold()
+        use_animus = any(term in q for term in self.HISTORY)
         plan = RoutePlan(
             query=query,
             world=scope,
@@ -78,8 +85,8 @@ class Router:
             atlas_state=str(atlas_status.get("state", "unknown")),
             atlas_fresh=bool(atlas_status.get("fresh")),
             use_atlas=bool(atlas_status.get("fresh")),
-            use_archive=True,
-            use_animus=any(term in q for term in self.HISTORY),
+            use_archive=any(term in q for term in self.ARCHIVE) or use_animus or not bool(atlas_status.get("fresh")),
+            use_animus=use_animus,
             phases=("check", "atlas", "archive", "animus", "sources"),
         )
         self.last_plan = plan
@@ -109,30 +116,36 @@ class Router:
             if not plan.folders_ready:
                 results.append(Result("CHECK", "Required folders missing", "Run holocore init before relying on project knowledge.", "; ".join(plan.missing_paths)))
             atlas_hits: list[dict[str, Any]] = []
+            atlas_limit = 1 if plan.use_animus else self.MAX_ATLAS_RESULTS
             if plan.use_atlas:
-                atlas_hits = self.atlas.search(query)
+                atlas_hits = self.atlas.search(query)[: atlas_limit]
                 for hit in atlas_hits:
                     results.append(Result("ATLAS", hit.get("label", hit["id"]), hit.get("kind", "signal"), hit.get("source_file", "")))
             else:
                 results.append(Result("CHECK", f"Atlas {plan.atlas_state}", "Run atlas-refresh before relying on structural context.", str(self.atlas.output)))
 
             archive_query = self._expanded_query(query, atlas_hits, ("label", "qualified_name", "source_file"))
-            archive_hits = self.archive.search(archive_query)
-            for hit in archive_hits:
-                results.append(Result("ARCHIVE", hit["title"], hit["snippet"], hit["path"]))
+            archive_hits: list[dict[str, Any]] = []
+            if plan.use_archive:
+                archive_limit = 1 if plan.use_animus else self.MAX_ARCHIVE_RESULTS
+                archive_hits = self.archive.search(archive_query)[: archive_limit]
+                for hit in archive_hits:
+                    snippet_limit = 180 if plan.use_animus else self.MAX_ARCHIVE_SNIPPET_CHARS
+                    snippet = str(hit.get("snippet", ""))[: snippet_limit]
+                    results.append(Result("ARCHIVE", hit["title"], snippet, hit["path"]))
 
             if plan.use_animus:
                 self.ensure_memory_scope()
                 memory_query = self._expanded_query(archive_query, archive_hits, ("title", "path"))
                 if self.retriever.embedder is None:
-                    hits = self.animus.search(memory_query, world=scope)
+                    hits = self.animus.search(memory_query, world=scope)[:1]
                     for hit in hits:
                         source = hit.provenance[0].source_ref if hit.provenance else ""
-                        results.append(Result("ANIMUS", f"Memory Shard {hit.id}", hit.content, source))
+                        results.append(Result("ANIMUS", f"Memory Shard {hit.id}", str(hit.content)[:180], source))
                 else:
-                    for hit in self.retriever.search(memory_query, world=scope):
+                    for hit in self.retriever.search(memory_query, world=scope)[:1]:
                         source = hit.shard.provenance[0].source_ref if hit.shard.provenance else ""
-                        results.append(Result("ANIMUS", f"Memory Shard {hit.shard.id}", hit.content, source))
+                        results.append(Result("ANIMUS", f"Memory Shard {hit.shard.id}", str(hit.content)[:180], source))
             return results
         finally:
             _ROUTE_STACK.reset(token)

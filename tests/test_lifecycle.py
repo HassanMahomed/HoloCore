@@ -25,6 +25,8 @@ def test_sync_all_reconciles_two_registered_worlds(
     assert report["home"] == str(isolated_holocore_home)
     assert report["count"] == report["updated"] == 2
     assert report["failed"] == 0
+    assert report["obsidian_vault"]["vault_name"] == "HoloCore Obsidian Vault"
+    assert Path(report["obsidian_vault"]["path"]).is_dir()
     assert {item["id"] for item in report["worlds"]} == expected_ids
     assert {item["root"] for item in report["worlds"]} == {
         str(world.resolve()) for world in worlds

@@ -11,6 +11,9 @@ from typing import Any, Mapping
 from .capture import capture_hook
 from .engine import HoloCoreEngine
 from .config import Config
+from .activity import ActivityLedger
+from .auto_update import maybe_check
+from . import __version__
 
 
 def _world_root(cwd: Path) -> Path:
@@ -50,11 +53,34 @@ def _fallback_messages(payload: Mapping[str, Any]) -> list[dict[str, str]]:
 
 def run(payload: Mapping[str, Any], client: str) -> dict[str, Any]:
     root = _world_root(Path(str(payload.get("cwd") or Path.cwd())).expanduser().resolve(strict=False))
+    config = Config.load(root=root)
+    project_id = config.world_id or root.name
+    try:
+        activity = ActivityLedger(config.animus_path).record_hook(
+            payload, client=client, project_id=project_id
+        )
+    except Exception as exc:  # Activity capture must never block the client.
+        activity = {"recorded": False, "reason": f"activity-error:{type(exc).__name__}"}
+    if activity.get("recorded"):
+        try:
+            event = str(payload.get("hook_event_name") or payload.get("event") or "")
+            maybe_check(
+                config.home or config.state_dir.parent,
+                current_version=__version__,
+                session_ending=event.casefold().replace("_", "").replace("-", "") == "sessionend",
+            )
+        except Exception:
+            # Updates are opportunistic. A missing network connection or an
+            # updater problem must never delay or break the parent AI client.
+            pass
     state = root / ".holocore" / "capture-state.json"
     report = capture_hook(payload, client, state)
     messages = list(report.get("messages", [])) or _fallback_messages(payload)
     if not messages:
-        result = {"captured": False, "reason": report.get("reason", "no-messages")}; _diagnostic(root, payload, result); return result
+        result = {"captured": False, "reason": report.get("reason", "no-messages")}
+        if activity.get("recorded"):
+            result["activity"] = activity
+        _diagnostic(root, payload, result); return result
     engine = HoloCoreEngine(root)
     result = engine.ingest_chat(messages, source=f"{client}:{report.get('source') or 'hook'}")
     # Advance the transcript cursor immediately after successful ingestion so
@@ -73,6 +99,7 @@ def run(payload: Mapping[str, Any], client: str) -> dict[str, Any]:
         "archive_entry": result.get("archive_entry"),
         "inbox": inbox,
         "atlas": atlas,
+        "activity": activity,
     }; _diagnostic(root, payload, result); return result
 
 

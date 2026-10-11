@@ -9,7 +9,7 @@ def _fresh(router: Router, monkeypatch) -> None:
     monkeypatch.setattr(router.atlas, "freshness", lambda: {"state": "fresh", "fresh": True})
 
 
-def test_router_checks_then_runs_atlas_archive_once_for_code_query(tmp_path: Path, monkeypatch) -> None:
+def test_router_checks_then_runs_atlas_only_for_code_query(tmp_path: Path, monkeypatch) -> None:
     router = Router(tmp_path)
     calls: list[str] = []
     monkeypatch.setattr(router.atlas, "freshness", lambda: calls.append("check") or {"state": "fresh", "fresh": True})
@@ -19,9 +19,9 @@ def test_router_checks_then_runs_atlas_archive_once_for_code_query(tmp_path: Pat
 
     router.search("dependency path")
 
-    assert calls == ["check", "atlas", "archive"]
+    assert calls == ["check", "atlas"]
     assert router.last_plan is not None
-    assert router.last_plan.phases == ("check", "atlas", "archive", "animus", "sources")
+    assert router.last_plan.use_archive is False
 
 
 def test_router_uses_graph_context_for_one_corresponding_archive_search(tmp_path: Path, monkeypatch) -> None:
@@ -31,7 +31,7 @@ def test_router_uses_graph_context_for_one_corresponding_archive_search(tmp_path
     monkeypatch.setattr(router.atlas, "search", lambda q: [{"id": "symbol:auth", "label": "AuthService", "qualified_name": "app.auth.AuthService", "source_file": "src/auth.py", "kind": "class"}])
     monkeypatch.setattr(router.archive, "search", lambda q: archive_queries.append(q) or [])
 
-    router.search("login dependency")
+    router.search("architecture login dependency")
 
     assert len(archive_queries) == 1
     assert "AuthService" in archive_queries[0]

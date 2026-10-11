@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tomllib
 from pathlib import Path
 from unittest.mock import patch
@@ -49,6 +50,12 @@ def test_bootstrap_creates_native_files_for_all_clients(
     codex = tomllib.loads((connections / ".codex/config.toml").read_text(encoding="utf-8"))
     assert codex["mcp_servers"]["holocore"]["args"] == ["-m", "holocore.mcp_server"]
     assert json.loads((connections / "opencode.json").read_text(encoding="utf-8"))["mcp"]["holocore"]["type"] == "local"
+    client_root = Path(os.environ["HOLOCORE_CONFIG_HOME"]) / "clients"
+    assert "holocore" in tomllib.loads((client_root / ".codex/config.toml").read_text(encoding="utf-8"))["mcp_servers"]
+    assert "holocore" in json.loads((client_root / ".claude.json").read_text(encoding="utf-8"))["mcpServers"]
+    assert "holocore" in json.loads((client_root / ".cursor/mcp.json").read_text(encoding="utf-8"))["mcpServers"]
+    assert "holocore" in json.loads((client_root / ".gemini/settings.json").read_text(encoding="utf-8"))["mcpServers"]
+    assert "holocore" in json.loads((client_root / ".config/opencode/opencode.json").read_text(encoding="utf-8"))["mcp"]
     policy = (connections / "policy.md").read_text(encoding="utf-8")
     assert "Atlas first" in policy
     assert "Archive second" in policy
@@ -62,9 +69,13 @@ def test_bootstrap_creates_native_files_for_all_clients(
     codex_hooks = json.loads((connections / ".codex/hooks.json").read_text(encoding="utf-8"))
     claude_hooks = json.loads((connections / ".claude/settings.json").read_text(encoding="utf-8"))
     assert "holocore.capture_hook --client codex" in json.dumps(codex_hooks["hooks"]["Stop"])
+    assert "PreToolUse" in codex_hooks["hooks"]
+    assert "SubagentStart" in codex_hooks["hooks"]
     assert "holocore.capture_hook --client claude" in json.dumps(
         claude_hooks["hooks"]["SessionEnd"]
     )
+    assert "PreToolUse" in claude_hooks["hooks"]
+    assert "SubagentStart" in claude_hooks["hooks"]
 
 
 def test_bootstrap_merges_without_replacing_user_instructions(tmp_path: Path) -> None:

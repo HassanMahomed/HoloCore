@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import os
+import sys
 from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
 from typing import Any
@@ -12,7 +14,7 @@ from .home import HomeManager
 from .install import bootstrap_project
 
 
-REPOSITORY = "https://github.com/VenomD846/HoloCore.git"
+REPOSITORY = "https://github.com/HassanMahomed/HoloCore.git"
 
 
 def installation_check() -> dict[str, Any]:
@@ -35,7 +37,7 @@ def uninstall_tool() -> dict[str, Any]:
     return {"uninstalled": True, "command": command, "output": completed.stdout.strip(), "data_preserved": True}
 
 
-def sync_all(home: Path | None = None) -> dict[str, Any]:
+def sync_all(home: Path | None = None, *, platforms: list[str] | None = None) -> dict[str, Any]:
     manager = HomeManager(home)
     listing = manager.list_worlds()
     results: list[dict[str, Any]] = []
@@ -45,7 +47,7 @@ def sync_all(home: Path | None = None) -> dict[str, Any]:
             results.append({"id": world.get("id"), "root": str(root), "updated": False, "reason": "missing-world"})
             continue
         try:
-            report = bootstrap_project(root, init_git=False, home=manager.home)
+            report = bootstrap_project(root, init_git=False, home=manager.home, platforms=platforms)
             from .engine import HoloCoreEngine
 
             atlas = HoloCoreEngine(root).ensure_atlas()
@@ -58,16 +60,44 @@ def sync_all(home: Path | None = None) -> dict[str, Any]:
             })
         except Exception as exc:
             results.append({"id": world.get("id"), "root": str(root), "updated": False, "reason": str(exc)})
+    from .obsidian_vault import build_obsidian_vault
+
+    vault = build_obsidian_vault(manager.home)
     return {
         "home": str(manager.home),
         "worlds": results,
         "count": len(results),
         "updated": sum(1 for item in results if item["updated"]),
         "failed": sum(1 for item in results if not item["updated"]),
+        "obsidian_vault": vault,
     }
 
 
 def update_install(home: Path | None = None, *, repository: str = REPOSITORY, reconcile: bool = True) -> dict[str, Any]:
+    if getattr(sys, "frozen", False):
+        installer = Path(sys.executable).resolve().parent / "install.ps1"
+        if not installer.is_file():
+            raise RuntimeError(
+                f"The Windows updater is missing: {installer}. Run the one-line installer again."
+            )
+        selected_home = HomeManager(home).home
+        command_text = (
+            f"Wait-Process -Id {os.getpid()} -ErrorAction SilentlyContinue; "
+            f"& '{installer}' -Yes -UpgradeOnly -Home '{selected_home}'"
+        )
+        subprocess.Popen(
+            ["powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", command_text],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        return {
+            "updated": False,
+            "update_queued": True,
+            "command": [str(installer), "-Yes", "-UpgradeOnly", "-Home", str(selected_home)],
+            "installer_output": "Update will begin after this HoloCore process exits.",
+            "reconciliation": None,
+        }
     uv = shutil.which("uv")
     if not uv:
         raise RuntimeError("uv is required for self-update. Install uv, then run `holocore update` again.")
