@@ -59,6 +59,69 @@ def detect_installed_clients() -> dict[str, dict[str, object]]:
     return result
 
 
+def _connection_config_path(client: str) -> Path:
+    root = _client_root()
+    paths = {
+        "claude": root / ".claude.json",
+        "codex": Path(os.getenv("CODEX_HOME", root / ".codex")) / "config.toml",
+        "cursor": root / ".cursor" / "mcp.json",
+        "gemini": root / ".gemini" / "settings.json",
+        "opencode": root / ".config" / "opencode" / "opencode.json",
+    }
+    return paths[client]
+
+
+def _is_holocore_entry(value: object) -> bool:
+    if not isinstance(value, dict):
+        return False
+    serialized = json.dumps(value, ensure_ascii=False, default=str).casefold()
+    return "holocore" in serialized
+
+
+def inspect_client_connections() -> dict[str, dict[str, object]]:
+    """Read supported client configs and report HoloCore connection health."""
+    detected = detect_installed_clients()
+    result: dict[str, dict[str, object]] = {}
+    for client in ("claude", "codex", "cursor", "gemini", "opencode"):
+        evidence = list(detected.get(client, {}).get("evidence", []))
+        config_path = _connection_config_path(client)
+        installed = bool(detected.get(client, {}).get("installed")) or config_path.exists()
+        state = "not-installed"
+        detail = "No executable or client configuration was found."
+        connected = False
+        if config_path.exists():
+            try:
+                if client == "codex":
+                    data = tomllib.loads(config_path.read_text(encoding="utf-8"))
+                    connected = _is_holocore_entry(data.get("mcp_servers", {}).get("holocore"))
+                else:
+                    data = json.loads(config_path.read_text(encoding="utf-8"))
+                    group = "mcp" if client == "opencode" else "mcpServers"
+                    connected = _is_holocore_entry(data.get(group, {}).get("holocore"))
+            except (OSError, UnicodeError, json.JSONDecodeError, tomllib.TOMLDecodeError) as exc:
+                state = "invalid-config"
+                detail = f"Could not read client configuration: {exc}"
+            else:
+                if connected:
+                    state = "connected"
+                    detail = "HoloCore MCP entry found."
+                else:
+                    state = "needs-connection"
+                    detail = "Client configuration exists but has no HoloCore MCP entry."
+        elif installed:
+            state = "needs-connection"
+            detail = "Client detected; run `holocore connect` to add HoloCore."
+        result[client] = {
+            "installed": installed,
+            "connected": connected,
+            "state": state,
+            "detection_evidence": evidence,
+            "config_path": str(config_path),
+            "detail": detail,
+        }
+    return result
+
+
 @dataclass
 class BootstrapReport:
     root: Path
@@ -87,6 +150,7 @@ class BootstrapReport:
                 "Obsidian: open the shared HoloCore Home Archive as one vault (optional).",
             ],
             "warnings": self.warnings,
+            "connections": inspect_client_connections(),
         }
 
 
@@ -393,3 +457,12 @@ def bootstrap(
     home: Path | None = None,
 ) -> dict:
     return bootstrap_project(project, init_git=init_git, platforms=platforms, home=home).as_dict()
+
+
+__all__ = [
+    "BootstrapReport",
+    "bootstrap",
+    "bootstrap_project",
+    "detect_installed_clients",
+    "inspect_client_connections",
+]

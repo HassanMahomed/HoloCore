@@ -1,13 +1,13 @@
 # MCP reference
 
-`holocore-mcp` is a local stdio server. Each project connection uses that project as the active World while resolving durable knowledge through the selected shared HoloCore Home.
+`holocore-mcp` is a local stdio server. One user-level connection accepts the active project root and resolves durable knowledge through the selected shared HoloCore Home.
 
-Setup writes the exact Python executable, `-m holocore.mcp_server`, and the project working directory into client configuration. No inherited terminal `PATH` is required.
+Setup writes the exact Python executable, `-m holocore.mcp_server`, and HoloCore Home working directory into client configuration. No inherited terminal `PATH` is required.
 
 ## Client approval
 
-- Claude stores the project server in `<project>/.mcp.json`. Restart Claude, run `/mcp`, and approve or confirm `holocore`.
-- Codex stores the equivalent server in `<project>/.codex/config.toml`. Restart or reopen the project. MCP access and Codex project skills are separate from the capture hook; review the hook through `/hooks`.
+- Claude stores the user-level server in `~/.claude.json`. Restart Claude, run `/mcp`, and approve or confirm `holocore`.
+- Codex stores the equivalent server under the Codex user configuration. Restart or reopen the project. MCP access and Codex skills are separate from the capture hook; review the hook through `/hooks`.
 
 ## Tools
 
@@ -42,6 +42,9 @@ Setup writes the exact Python executable, `-m holocore.mcp_server`, and the proj
 | `holocore_global_graph` | optional `output` | Write; builds an Atlas-only graph across registered Worlds |
 | `holocore_setup` | `home` | Write; registers the current World and connects supported clients |
 | `holocore_sync_all` | None | Write; reconciles every registered World and ensures Atlas freshness |
+| `holocore_activity_affected` | `query`; optional `limit` | Read; returns runs and actions that affected a matching file or directory |
+| `holocore_activity_handoff` | optional `run_id`, `action_limit`, `item_limit` | Read; creates a bounded privacy-safe handoff from structured activity |
+| `holocore_connections` | None | Read; reports installed and connected status for five supported AI clients |
 
 The `holocore_setup` tool requires a user-chosen `home` input. The generated setup prompt tells the AI client to ask the user where the shared Home should live before running the write.
 
@@ -66,6 +69,6 @@ The files are installed by `setup` or `connect`; users still approve the MCP ser
 - Transport: local standard input/output
 - Result shape: JSON encoded in one MCP text-content item
 - Error shape: JSON-RPC code `-32000` with the exception message
-- Server version: `0.5.0`
+- Server version: `0.9.0`
 
 The server has no network authentication layer because it is launched as a local child process. The AI client, project configuration, operating-system permissions, and explicit client approval are the trust boundary.

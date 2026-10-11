@@ -23,3 +23,12 @@ def test_mcp_does_not_reply_to_notifications(monkeypatch, capsys):
     responses = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
     assert [response["id"] for response in responses] == [1, 2]
     assert all(response["id"] is not None for response in responses)
+
+
+def test_v09_read_only_tools_are_advertised():
+    names = {tool["name"] for tool in mcp_server.TOOLS}
+    assert {
+        "holocore_activity_affected",
+        "holocore_activity_handoff",
+        "holocore_connections",
+    } <= names

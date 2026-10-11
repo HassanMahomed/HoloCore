@@ -41,6 +41,9 @@ TOOLS = [
     _tool("holocore_global_graph", "Build one Atlas-only graph across registered Worlds", {"output": {"type": "string"}}),
     _tool("holocore_setup", "Register this World and connect supported AI clients. Ask the user to choose the shared HoloCore Home location first.", {"home": {"type": "string", "description": "User-chosen shared HoloCore Home directory"}}, ["home"]),
     _tool("holocore_sync_all", "Reconcile every registered World after a HoloCore upgrade"),
+    _tool("holocore_activity_affected", "Find agent actions and runs that affected a file or directory", {"query": {"type": "string"}, "limit": {"type": "integer"}}, ["query"]),
+    _tool("holocore_activity_handoff", "Create a privacy-bounded handoff from the latest or selected agent run", {"run_id": {"type": "string"}, "action_limit": {"type": "integer"}, "item_limit": {"type": "integer"}}),
+    _tool("holocore_connections", "Show which supported AI clients are installed and connected"),
     _tool("holocore_ingest", "Ingest a local file, folder, or HTTP(S) URL into immutable raw storage, scoped memory, a durable Archive Entry, and the current Atlas", {"source": {"type": "string"}, "title": {"type": "string"}}, ["source"]),
     _tool("holocore_inbox_sync", "Ingest new files from this World's visible source Inbox"),
     _tool("holocore_animus_mine", "Mine one explicitly scoped World using files, conversations, or Git history", {"mode": {"type": "string"}, "path": {"type": "string"}, "sector": {"type": "string"}}, ["mode"]),
@@ -116,6 +119,17 @@ def call(engine: HoloCoreEngine, name: str, args: dict):
         return build_global_graph(manager.home, output=output)
     if name == "holocore_setup": return engine.setup(home=Path(args["home"]).expanduser())
     if name == "holocore_sync_all": return sync_all()
+    if name in {"holocore_activity_affected", "holocore_activity_handoff"}:
+        from .activity import ActivityLedger
+        from .config import Config
+        config = Config.load(root=engine.root); project_id = config.world_id or engine.root.name
+        ledger = ActivityLedger(config.animus_path)
+        if name == "holocore_activity_affected":
+            return ledger.affected(args["query"], project_id=project_id, limit=int(args.get("limit", 100)))
+        return ledger.handoff(project_id=project_id, run_id=args.get("run_id"), action_limit=int(args.get("action_limit", 50)), item_limit=int(args.get("item_limit", 100)))
+    if name == "holocore_connections":
+        from .install import inspect_client_connections
+        return inspect_client_connections()
     if name == "holocore_ingest": return engine.ingest_source(args["source"], title=args.get("title"))
     if name == "holocore_inbox_sync": return engine.sync_inbox()
     if name.startswith("holocore_animus_"):

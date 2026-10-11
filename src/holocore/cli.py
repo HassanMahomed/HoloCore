@@ -165,6 +165,7 @@ def main() -> int:
     sub.add_parser("open-archive", help="Open the visible Archive folder")
     sub.add_parser("status")
     sub.add_parser("detect-clients", help="Find supported AI clients installed on this computer")
+    sub.add_parser("connections", help="Show which installed AI clients are connected to HoloCore")
     console = sub.add_parser("console", help="Open the local HoloCore browser Console")
     console.add_argument("--port", type=int, default=0, help="Local port (0 chooses a free port)")
     console.add_argument("--no-open", action="store_true", help="Print the URL without opening a browser")
@@ -249,6 +250,16 @@ def main() -> int:
     memory_sub = memory.add_subparsers(dest="memory_command", required=True)
     memory_search = memory_sub.add_parser("search"); memory_search.add_argument("query"); memory_search.add_argument("--area", dest="sector")
     memory_add = memory_sub.add_parser("add"); memory_add.add_argument("content"); memory_add.add_argument("--area", dest="sector", default="general"); memory_add.add_argument("--source", default="cli")
+    activity = sub.add_parser("activity", help="Inspect agent activity and affected items")
+    activity_sub = activity.add_subparsers(dest="activity_command", required=True)
+    activity_sub.add_parser("status", help="Show recorded run, action, and item counts")
+    activity_runs = activity_sub.add_parser("runs", help="List agent runs"); activity_runs.add_argument("--limit", type=int, default=100)
+    activity_show = activity_sub.add_parser("show", help="Show actions in one run"); activity_show.add_argument("run_id"); activity_show.add_argument("--limit", type=int, default=500)
+    activity_affected = activity_sub.add_parser("affected", help="Find activity that affected a file or directory"); activity_affected.add_argument("query"); activity_affected.add_argument("--limit", type=int, default=100)
+    handoff = sub.add_parser("handoff", help="Create a bounded handoff from the latest or selected agent run")
+    handoff.add_argument("run_id", nargs="?")
+    handoff.add_argument("--actions", type=int, default=50)
+    handoff.add_argument("--items", type=int, default=100)
     runs = sub.add_parser("runs", help="Inspect recorded agent runs and actions")
     runs_sub = runs.add_subparsers(dest="runs_command", required=True)
     runs_list = runs_sub.add_parser("list"); runs_list.add_argument("--limit", type=int, default=100)
@@ -285,6 +296,15 @@ def main() -> int:
                 state = "detected" if detail["installed"] else "not found"
                 evidence = f" ({', '.join(detail['evidence'])})" if detail["evidence"] else ""
                 print(f"{name.title():10} {state}{evidence}")
+        return 0
+    if args.command == "connections":
+        from .install import inspect_client_connections
+        value = inspect_client_connections()
+        if args.json:
+            print(json.dumps(value, indent=2, default=str))
+        else:
+            for name, detail in value.items():
+                print(f"{name.title():10} {detail['state']:16} {detail['detail']}")
         return 0
     if args.command == "console":
         from .console import export_console, serve_console
@@ -484,10 +504,16 @@ def main() -> int:
             value = engine.remember(args.content, args.sector, args.source)
         else:
             engine.router.ensure_memory_scope(); value = [r.__dict__ for r in engine.router.animus.search(args.query, world=engine.router.world_id, sector=args.sector)]
-    elif args.command in {"runs", "activity-status"}:
+    elif args.command in {"activity", "handoff", "runs", "activity-status"}:
         from .activity import ActivityLedger
         config = Config.load(root=root); ledger = ActivityLedger(config.animus_path); project_id = config.world_id or root.name
         if args.command == "activity-status": value = ledger.status(project_id=project_id)
+        elif args.command == "handoff": value = ledger.handoff(project_id=project_id, run_id=args.run_id, action_limit=args.actions, item_limit=args.items)
+        elif args.command == "activity":
+            if args.activity_command == "status": value = ledger.status(project_id=project_id)
+            elif args.activity_command == "runs": value = ledger.runs(project_id=project_id, limit=args.limit)
+            elif args.activity_command == "show": value = {"run_id": args.run_id, "actions": ledger.actions(args.run_id, limit=args.limit)}
+            else: value = ledger.affected(args.query, project_id=project_id, limit=args.limit)
         elif args.runs_command == "list": value = ledger.runs(project_id=project_id, limit=args.limit)
         else: value = {"run_id": args.run_id, "actions": ledger.actions(args.run_id, limit=args.limit)}
     else: raise AssertionError(args.command)

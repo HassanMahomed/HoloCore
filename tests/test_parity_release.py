@@ -69,6 +69,14 @@ def test_keyless_release_acceptance_fixture(keyless_release_env: tuple[Path, dic
     assert status.returncode == 0, status.stderr
     assert json.loads(status.stdout)["readiness"]["ready"] is True
 
+    connections = _run_cli(world, env, "connections")
+    assert connections.returncode == 0, connections.stderr
+    assert set(json.loads(connections.stdout)) == {"claude", "codex", "cursor", "gemini", "opencode"}
+
+    activity = _run_cli(world, env, "activity", "status")
+    assert activity.returncode == 0, activity.stderr
+    assert json.loads(activity.stdout)["ready"] is True
+
     mcp = subprocess.Popen(
         [sys.executable, "-m", "holocore.mcp_server"], cwd=world, env=env,
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,

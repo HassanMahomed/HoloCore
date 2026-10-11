@@ -63,6 +63,8 @@ def sync_all(home: Path | None = None, *, platforms: list[str] | None = None) ->
     from .obsidian_vault import build_obsidian_vault
 
     vault = build_obsidian_vault(manager.home)
+    from .install import inspect_client_connections
+
     return {
         "home": str(manager.home),
         "worlds": results,
@@ -70,6 +72,7 @@ def sync_all(home: Path | None = None, *, platforms: list[str] | None = None) ->
         "updated": sum(1 for item in results if item["updated"]),
         "failed": sum(1 for item in results if not item["updated"]),
         "obsidian_vault": vault,
+        "connections": inspect_client_connections(),
     }
 
 

@@ -144,6 +144,10 @@ class ActivityLedger:
                     action_id TEXT NOT NULL REFERENCES activity_actions(id) ON DELETE CASCADE,
                     item_id TEXT NOT NULL REFERENCES activity_items(id) ON DELETE CASCADE,
                     relation TEXT NOT NULL, PRIMARY KEY(action_id, item_id, relation));
+                CREATE INDEX IF NOT EXISTS ix_activity_items_project_uri
+                    ON activity_items(project_id, uri);
+                CREATE INDEX IF NOT EXISTS ix_action_items_item
+                    ON action_items(item_id, action_id);
                 """
             )
 
@@ -231,6 +235,115 @@ class ActivityLedger:
             ).fetchall()
         return [{**dict(row), "metadata": json.loads(row["metadata"]),
                  "items": tuple(filter(None, str(row["item_uris"] or "").splitlines()))} for row in rows]
+
+    def affected(
+        self,
+        query: str,
+        *,
+        project_id: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Return newest recorded actions linked to matching files or directories."""
+        normalized = str(query).strip().replace("\\", "/").casefold()
+        if not normalized:
+            raise ValueError("Affected-item query cannot be empty.")
+        values: list[Any] = [f"%{normalized}%"]
+        project_clause = ""
+        if project_id:
+            project_clause = " AND i.project_id=?"
+            values.append(project_id)
+        values.append(max(1, min(int(limit), 1000)))
+        with self._connection() as db:
+            rows = db.execute(
+                f"""SELECT i.id AS item_id, i.uri, i.kind, i.label,
+                    a.id AS action_id, a.event, a.tool, a.status AS action_status,
+                    a.occurred_at, a.duration_ms, r.id AS run_id, r.agent,
+                    r.agent_type, r.model, r.status AS run_status
+                FROM activity_items i
+                JOIN action_items ai ON ai.item_id=i.id AND ai.relation='affected'
+                JOIN activity_actions a ON a.id=ai.action_id
+                JOIN agent_runs r ON r.id=a.run_id
+                WHERE replace(lower(i.uri), '\\', '/') LIKE ?{project_clause}
+                ORDER BY a.occurred_at DESC, a.id DESC LIMIT ?""",
+                values,
+            ).fetchall()
+        return {"query": query, "count": len(rows), "results": [dict(row) for row in rows]}
+
+    def handoff(
+        self,
+        *,
+        project_id: str,
+        run_id: str | None = None,
+        action_limit: int = 50,
+        item_limit: int = 100,
+    ) -> dict[str, Any]:
+        """Build a deterministic, privacy-bounded handoff from structured activity."""
+        with self._connection() as db:
+            if run_id:
+                run = db.execute(
+                    "SELECT * FROM agent_runs WHERE id=? AND project_id=?",
+                    (run_id, project_id),
+                ).fetchone()
+            else:
+                run = db.execute(
+                    "SELECT * FROM agent_runs WHERE project_id=? ORDER BY updated_at DESC, id DESC LIMIT 1",
+                    (project_id,),
+                ).fetchone()
+            if run is None:
+                target = f"run {run_id}" if run_id else f"project {project_id}"
+                raise ValueError(f"No recorded agent activity found for {target}.")
+            selected_run_id = str(run["id"])
+            totals = db.execute(
+                """SELECT count(*) AS actions,
+                    sum(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failures
+                FROM activity_actions WHERE run_id=?""",
+                (selected_run_id,),
+            ).fetchone()
+            item_count = db.execute(
+                """SELECT count(DISTINCT ai.item_id)
+                FROM action_items ai JOIN activity_actions a ON a.id=ai.action_id
+                WHERE a.run_id=? AND ai.relation='affected'""",
+                (selected_run_id,),
+            ).fetchone()[0]
+            item_rows = db.execute(
+                """SELECT i.uri, i.kind, i.label, max(a.occurred_at) AS last_affected_at
+                FROM activity_items i
+                JOIN action_items ai ON ai.item_id=i.id AND ai.relation='affected'
+                JOIN activity_actions a ON a.id=ai.action_id
+                WHERE a.run_id=? GROUP BY i.id
+                ORDER BY last_affected_at DESC, i.uri LIMIT ?""",
+                (selected_run_id, max(1, min(int(item_limit), 100))),
+            ).fetchall()
+            action_rows = db.execute(
+                """SELECT a.*, group_concat(i.uri, char(10)) AS item_uris
+                FROM activity_actions a
+                LEFT JOIN action_items ai ON ai.action_id=a.id
+                LEFT JOIN activity_items i ON i.id=ai.item_id
+                WHERE a.run_id=? GROUP BY a.id
+                ORDER BY a.occurred_at DESC, a.id DESC LIMIT ?""",
+                (selected_run_id, max(1, min(int(action_limit), 50))),
+            ).fetchall()
+        run_value = {**dict(run), "metadata": json.loads(run["metadata"])}
+        recent_actions = [
+            {
+                **dict(row),
+                "metadata": json.loads(row["metadata"]),
+                "items": tuple(sorted(filter(None, str(row["item_uris"] or "").splitlines()))),
+            }
+            for row in action_rows
+        ]
+        return {
+            "generated_at": _now(),
+            "privacy": "Derived from sanitized structured activity; prompts and raw tool payloads are not stored.",
+            "run": run_value,
+            "summary": {
+                "actions": int(totals["actions"] or 0),
+                "failures": int(totals["failures"] or 0),
+                "affected_items": int(item_count or 0),
+            },
+            "affected_items": [dict(row) for row in item_rows],
+            "recent_actions": recent_actions,
+        }
 
     def status(self, *, project_id: str | None = None) -> dict[str, Any]:
         where, values = (" WHERE project_id=?", [project_id]) if project_id else ("", [])

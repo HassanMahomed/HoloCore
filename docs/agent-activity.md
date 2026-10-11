@@ -17,10 +17,16 @@ Affected paths are normalized into reusable **Items** and connected to their act
 The data is stored in the local HoloCore SQLite database beside conversation memory. View it in the Console's **Agent Runs** tab or use:
 
 ```powershell
-holocore activity-status
-holocore runs list
-holocore runs show <run-id>
+holocore activity status
+holocore activity runs
+holocore activity show <run-id>
+holocore activity affected "src/holocore/activity.py"
+holocore handoff
 ```
+
+`activity affected` works in the reverse direction: start with a full or partial file path and see the newest linked actions, agents, and runs. `handoff` selects the latest run by default, or accepts a run ID, and returns totals, failures, affected items, and up to 50 recent actions. It is generated on demand from the sanitized ledger and is not copied into conversation memory.
+
+The older `activity-status` and `runs` commands remain available for scripts and existing AI skills.
 
 ## Privacy boundary
 

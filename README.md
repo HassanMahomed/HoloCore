@@ -2,7 +2,7 @@
 
 ![HoloCore Context Engine icon](docs/assets/holocore-icon.png)
 
-**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `0.7.2` combines verified project knowledge, a structural code map, conversation memory, and a searchable agent activity ledger behind one CLI, MCP server, and browser Console.
+**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `0.9.0` combines verified project knowledge, a structural code map, conversation memory, searchable agent impact history, and lightweight cross-agent handoffs behind one CLI, MCP server, and browser Console.
 
 ![HoloCore Context Engine checks Atlas, reads matching Archive knowledge, optionally recalls Animus history, and sends focused context to reduce input tokens](docs/assets/holocore-context-engine-token-savings.png)
 
@@ -119,6 +119,9 @@ holocore paths
 holocore worlds
 holocore search "Why did we choose SQLite?"
 holocore console                    # open the local browser Console
+holocore connections                # installed versus connected AI clients
+holocore activity affected "app.py" # agents and actions that touched an item
+holocore handoff                    # bounded summary for the next agent
 ```
 
 The Console brings conversations, memories, verified knowledge, the code map,
@@ -135,7 +138,7 @@ Console panels and triggers:
 - **Activity** — memories, focused collections, history, provenance, and episodic context.
 - **Knowledge** — editable Markdown notes with managed/user-owned provenance and source links.
 - **Code Map** — project items, relationships, paths, explanations, and clusters.
-- **Agent Runs** — each agent and subagent run, its actions, status, tools, and affected items.
+- **Agent Runs** — filter each agent and subagent run by agent, action, status, tool, or affected item; see handoff totals at a glance.
 - **Locations** — exact Home, project, memory, knowledge, code-map, raw-chat, and connection paths.
 - **AI Commands** — commands grouped by effect for Claude, Codex, and MCP clients.
 - **Maintenance** — ingest, resync, cleanup preview, diagnostics, migration, and freshness status.
@@ -178,7 +181,7 @@ Setup detects Claude Code, Codex, Gemini CLI, Cursor, and OpenCode, then asks wh
 - Codex receives `.codex/config.toml`, `$`-invoked skills under `.agents/skills`, plus a `Stop` capture hook.
 - Gemini, Cursor, and OpenCode receive their native project MCP and command formats.
 
-Use `holocore detect-clients` to inspect detection and `holocore connect` to add or repair integrations after installing another client. `holocore update` and the Windows upgrade flow rescan automatically. Existing unrelated settings are preserved; invalid files are skipped with a warning rather than overwritten.
+Use `holocore detect-clients` to inspect detection, `holocore connections` to distinguish installed apps from working HoloCore connections, and `holocore connect` to add or repair integrations after installing another client. `holocore update` and the Windows upgrade flow rescan automatically. Existing unrelated settings are preserved; invalid files are reported and skipped rather than overwritten.
 
 ## Legacy/internal vocabulary
 
@@ -195,6 +198,7 @@ The current release includes Atlas clustering, audits, explain/path analysis and
 - [Installation guide](docs/installation.md)
 - [One-line Windows installation](docs/windows-installation.md)
 - [Agent activity ledger](docs/agent-activity.md)
+- [What is new in v0.9](docs/v0.9.md)
 - [Prerequisites and optional graph tools](docs/prerequisites.md)
 - [Workflow guide](docs/workflows.md)
 - [Slash-command and skill reference](docs/slash-commands.md)
