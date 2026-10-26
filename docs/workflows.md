@@ -18,7 +18,7 @@ cd <another-project>
 holocore setup
 ```
 
-Open `<Home>/Archive` as one Obsidian vault. Durable notes for each World stay under `Worlds/<world-id>`; cross-project notes go under `Shared`.
+Open `<Home>/Knowledge` as one Obsidian vault. Durable notes for each World stay under `Worlds/<world-id>`; cross-project notes go under `Shared`.
 
 After setup, restart the AI client:
 
@@ -139,7 +139,7 @@ This selects and initializes another Home; it does not migrate the old one. Copy
 
 Archive and Atlas are different:
 
-- Open `<Home>/Archive` in Obsidian to explore durable knowledge links.
+- Open `<Home>/Knowledge` in Obsidian to explore durable knowledge links.
 - Run `holocore atlas-view` in a World to explore project structure.
 
 Atlas HTML is self-contained and local. The MCP HTML tool refreshes the focused, Git-ignore-aware graph and returns `<project>/graphify-out/atlas.html` without forcing the AI client to open a browser. Search and filters reduce dense graphs; labels are collision-checked and expand on hover or selection.

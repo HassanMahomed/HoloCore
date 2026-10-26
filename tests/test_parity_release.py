@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from holocore.commands import COMMANDS
+from holocore.activity import ActivityLedger
 from holocore.engine import HoloCoreEngine
 from holocore.mcp_server import PROMPTS, TOOLS
 from holocore.parity import assert_parity, compatibility_matrix
@@ -76,6 +77,30 @@ def test_keyless_release_acceptance_fixture(keyless_release_env: tuple[Path, dic
     activity = _run_cli(world, env, "activity", "status")
     assert activity.returncode == 0, activity.stderr
     assert json.loads(activity.stdout)["ready"] is True
+
+    paths = _run_cli(world, env, "paths")
+    assert paths.returncode == 0, paths.stderr
+    status_data = json.loads(status.stdout)
+    recorded = ActivityLedger(json.loads(paths.stdout)["memory_shards"]).record_hook(
+        {"hook_event_name": "PostToolUse", "session_id": "release-handoff", "event_id": "release-handoff-event"},
+        client="codex",
+        project_id=status_data["world_id"],
+    )
+    visible_runs = _run_cli(world, env, "activity", "runs")
+    assert visible_runs.returncode == 0, visible_runs.stderr
+    visible_rows = json.loads(visible_runs.stdout)
+    assert any(row["id"] == recorded["run_id"] for row in visible_rows)
+    handoff = _run_cli(world, env, "handoffs", "create", recorded["run_id"], "--title", "Release follow-up")
+    assert handoff.returncode == 0, handoff.stderr
+    handoff_id = json.loads(handoff.stdout)["id"]
+
+    claimed = _run_cli(world, env, "handoffs", "claim", handoff_id, "--agent", "codex")
+    assert claimed.returncode == 0, claimed.stderr
+    assert json.loads(claimed.stdout)["context"]["run"]["id"] == recorded["run_id"]
+
+    completed = _run_cli(world, env, "handoffs", "complete", handoff_id, "--agent", "codex")
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout)["status"] == "completed"
 
     mcp = subprocess.Popen(
         [sys.executable, "-m", "holocore.mcp_server"], cwd=world, env=env,

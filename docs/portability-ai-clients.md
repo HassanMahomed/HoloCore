@@ -18,8 +18,8 @@ holocore setup
 
 Every client in a World reaches the same two durable scopes:
 
-- `<Home>/Archive/Worlds/<world-id>` for that project;
-- `<Home>/Archive/Shared` for explicitly shared knowledge.
+- `<Home>/Knowledge/Projects/<project-id>` for that project;
+- `<Home>/Knowledge/Shared` for explicitly shared knowledge.
 
 Atlas, Animus, raw chats, and hook cursors remain under each project.
 
@@ -127,6 +127,6 @@ This reinstalls HoloCore from Git through `uv`, then performs the same reconcili
 
 ## Portability and privacy contract
 
-The portable durable brain is `<Home>/Archive` plus `<Home>/worlds.json`. Project `.holocore` contains generated structure, raw transcripts, and episodic history. Copy it only when that local state should travel.
+The portable durable brain is `<Home>/Knowledge` plus `<Home>/worlds.json`. Project `.holocore` contains generated structure, raw transcripts, and episodic history. Copy it only when that local state should travel.
 
-Do not copy `animus.db` while HoloCore is writing to it. Treat raw chats and Animus as sensitive. Obsidian remains optional; when used, open `<Home>/Archive` as the one vault.
+Do not copy `animus.db` while HoloCore is writing to it. Treat raw chats and Animus as sensitive. Obsidian remains optional; when used, open `<Home>/Knowledge` as the one vault.

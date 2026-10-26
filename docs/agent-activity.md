@@ -28,6 +28,19 @@ holocore handoff
 
 The older `activity-status` and `runs` commands remain available for scripts and existing AI skills.
 
+## Claimable handoffs
+
+A run summary can become a persistent handoff that the next agent claims before continuing. HoloCore records the run reference and a short title/note; the sanitized context is loaded from the activity ledger when claimed.
+
+```powershell
+holocore handoffs create <run-id> --title "Finish the installer work" --note "Review the outstanding packaging issue."
+holocore handoffs list --status open
+holocore handoffs claim <handoff-id> --agent codex
+holocore handoffs complete <handoff-id> --agent codex --reason "Packaging issue resolved."
+```
+
+Use `abandon` to close work that should not continue. An open handoff can be abandoned directly; claimed work can be completed or abandoned by the agent that claimed it. A second agent cannot claim an already claimed handoff. Handoff notes are local and should not contain credentials or private conversation text.
+
 ## Privacy boundary
 
 The activity ledger stores allow-listed lifecycle metadata. It does not persist prompt bodies, assistant responses, complete tool inputs or outputs, authentication values, cookies, API keys, passwords, or tokens. The complete hook payload may contribute to a one-way idempotency hash, but it is not saved by the ledger.

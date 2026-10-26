@@ -148,6 +148,21 @@ class ActivityLedger:
                     ON activity_items(project_id, uri);
                 CREATE INDEX IF NOT EXISTS ix_action_items_item
                     ON action_items(item_id, action_id);
+                CREATE TABLE IF NOT EXISTS agent_handoffs(
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    run_id TEXT NOT NULL REFERENCES agent_runs(id),
+                    title TEXT NOT NULL,
+                    note TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('open','claimed','completed','abandoned')),
+                    created_at TEXT NOT NULL,
+                    claimed_at TEXT,
+                    claimed_by TEXT,
+                    closed_at TEXT,
+                    close_reason TEXT
+                );
+                CREATE INDEX IF NOT EXISTS ix_agent_handoffs_project_status
+                    ON agent_handoffs(project_id, status, created_at DESC);
                 """
             )
 
@@ -344,6 +359,137 @@ class ActivityLedger:
             "affected_items": [dict(row) for row in item_rows],
             "recent_actions": recent_actions,
         }
+
+    def create_handoff(
+        self,
+        *,
+        project_id: str,
+        run_id: str,
+        title: str = "",
+        note: str = "",
+    ) -> dict[str, Any]:
+        """Create a persistent, claimable pointer to one run and its derived context."""
+        title = str(title).strip()[:160]
+        note = str(note).strip()[:2000]
+        with self._connection() as db:
+            run = db.execute(
+                "SELECT agent, started_at FROM agent_runs WHERE id=? AND project_id=?",
+                (run_id, project_id),
+            ).fetchone()
+            if run is None:
+                raise ValueError(f"No recorded agent activity found for run {run_id} in this project.")
+            if not title:
+                title = f"Continue work from {run['agent']} run started {run['started_at']}"[:160]
+            handoff_id = uuid.uuid4().hex
+            now = _now()
+            db.execute(
+                """INSERT INTO agent_handoffs
+                (id, project_id, run_id, title, note, status, created_at)
+                VALUES(?,?,?,?,?,'open',?)""",
+                (handoff_id, project_id, run_id, title, note, now),
+            )
+            row = db.execute("SELECT * FROM agent_handoffs WHERE id=?", (handoff_id,)).fetchone()
+        return dict(row)
+
+    def handoffs(
+        self,
+        *,
+        project_id: str,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        if status and status not in {"open", "claimed", "completed", "abandoned"}:
+            raise ValueError("Handoff status must be open, claimed, completed, or abandoned.")
+        values: list[Any] = [project_id]
+        where = "project_id=?"
+        if status:
+            where += " AND status=?"
+            values.append(status)
+        values.append(max(1, min(int(limit), 500)))
+        with self._connection() as db:
+            rows = db.execute(
+                f"""SELECT * FROM agent_handoffs WHERE {where}
+                ORDER BY created_at DESC, id DESC LIMIT ?""",
+                values,
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def claim_handoff(
+        self,
+        handoff_id: str,
+        *,
+        project_id: str,
+        agent: str,
+    ) -> dict[str, Any]:
+        """Atomically claim open work; repeated claims by the same agent are safe."""
+        agent = str(agent).strip()[:128]
+        if not agent:
+            raise ValueError("Agent name is required to claim a handoff.")
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT * FROM agent_handoffs WHERE id=? AND project_id=?",
+                (handoff_id, project_id),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"Handoff {handoff_id} was not found in this project.")
+            if row["status"] == "open":
+                now = _now()
+                db.execute(
+                    """UPDATE agent_handoffs SET status='claimed', claimed_at=?, claimed_by=?
+                    WHERE id=? AND project_id=? AND status='open'""",
+                    (now, agent, handoff_id, project_id),
+                )
+                row = db.execute("SELECT * FROM agent_handoffs WHERE id=?", (handoff_id,)).fetchone()
+            elif row["status"] == "claimed" and str(row["claimed_by"]).casefold() == agent.casefold():
+                pass
+            else:
+                raise ValueError(
+                    f"Handoff {handoff_id} is {row['status']} and cannot be claimed by {agent}."
+                )
+            result = dict(row)
+        result["context"] = self.handoff(project_id=project_id, run_id=result["run_id"])
+        return result
+
+    def close_handoff(
+        self,
+        handoff_id: str,
+        *,
+        project_id: str,
+        outcome: str,
+        agent: str = "",
+        reason: str = "",
+    ) -> dict[str, Any]:
+        """Complete or abandon a handoff while preserving its claim history."""
+        if outcome not in {"completed", "abandoned"}:
+            raise ValueError("Handoff outcome must be completed or abandoned.")
+        agent = str(agent).strip()[:128]
+        reason = str(reason).strip()[:1000]
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT * FROM agent_handoffs WHERE id=? AND project_id=?",
+                (handoff_id, project_id),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"Handoff {handoff_id} was not found in this project.")
+            current = str(row["status"])
+            if row["claimed_by"] and str(row["claimed_by"]).casefold() != agent.casefold():
+                raise ValueError("Only the agent that claimed this handoff can close it.")
+            if current == outcome:
+                return dict(row)
+            if current in {"completed", "abandoned"}:
+                raise ValueError(f"Handoff {handoff_id} is already {current}.")
+            if outcome == "completed" and current != "claimed":
+                raise ValueError("Only a claimed handoff can be completed.")
+            now = _now()
+            db.execute(
+                """UPDATE agent_handoffs SET status=?, closed_at=?, close_reason=?
+                WHERE id=? AND project_id=?""",
+                (outcome, now, reason, handoff_id, project_id),
+            )
+            updated = db.execute("SELECT * FROM agent_handoffs WHERE id=?", (handoff_id,)).fetchone()
+        return dict(updated)
 
     def status(self, *, project_id: str | None = None) -> dict[str, Any]:
         where, values = (" WHERE project_id=?", [project_id]) if project_id else ("", [])

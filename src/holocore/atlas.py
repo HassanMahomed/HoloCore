@@ -492,21 +492,21 @@ class Atlas:
         constellations = self.constellations()
         target = Path(output) if output is not None else self.graph_path.parent / "GRAPH_REPORT.md"
         lines = [
-            "# HoloCore Atlas Report",
+            "# HoloCore Code Map Report",
             "",
             f"- Generated: {metadata.get('generated_at', 'unknown')}",
             f"- Source root: `{metadata.get('source_root', self.root)}`",
             f"- Files: {stats.get('files', 0)}",
-            f"- Signals: {stats.get('nodes', len(graph.get('nodes', [])))}",
+            f"- Items: {stats.get('nodes', len(graph.get('nodes', [])))}",
             f"- Relationships: {stats.get('links', len(graph.get('links', [])))}",
-            f"- Constellations: {len(constellations)}",
+            f"- Clusters: {len(constellations)}",
             f"- Source digest: `{metadata.get('source_digest', '')}`",
             "",
-            "## Constellations",
+            "## Clusters",
             "",
         ]
         for item in constellations[:50]:
-            lines.append(f"- **{item['label']}** — {item['size']} Signals")
+            lines.append(f"- **{item['label']}** — {item['size']} items")
         target.parent.mkdir(parents=True, exist_ok=True)
         payload = "\n".join(lines) + "\n"
         if not target.exists() or target.read_text(encoding="utf-8") != payload:

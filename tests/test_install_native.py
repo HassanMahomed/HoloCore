@@ -24,7 +24,7 @@ def test_bootstrap_creates_native_files_for_all_clients(
     assert not (root / "Archive").exists()
     world_storage = isolated_holocore_home / "Projects" / report.world_id
     config = json.loads((world_storage / "world.json").read_text(encoding="utf-8"))
-    world_archive = isolated_holocore_home / "Archive" / "Worlds" / report.world_id
+    world_archive = isolated_holocore_home / "Knowledge" / "Projects" / report.world_id
     assert config == {
         "version": 5,
         "world": root.name,
@@ -33,18 +33,18 @@ def test_bootstrap_creates_native_files_for_all_clients(
         "home": str(isolated_holocore_home),
         "archive": str(world_archive),
         "state_dir": str(world_storage / "Runtime"),
-        "animus": str(isolated_holocore_home / "Animus" / "animus.db"),
-        "raw_chats": str(isolated_holocore_home / "Animus" / "raw-chats" / report.world_id),
-        "atlas_graph": str(world_storage / "Atlas" / "graph.json"),
+        "animus": str(isolated_holocore_home / "Memories" / "animus.db"),
+        "raw_chats": str(isolated_holocore_home / "Memories" / "ChatHistory" / report.world_id),
+        "atlas_graph": str(world_storage / "CodeMap" / "graph.json"),
         "llm": {"provider": "local"},
     }
     paths = world_paths(root)
     assert paths["home"] == str(isolated_holocore_home)
-    assert paths["archive"] == str(isolated_holocore_home)
+    assert paths["archive"] == str(isolated_holocore_home / "Knowledge")
     assert paths["world_archive"] == str(world_archive)
     assert "shared_archive" not in paths
-    assert paths["memory_shards"] == str(isolated_holocore_home / "Animus" / "animus.db")
-    assert paths["raw_chats"] == str(isolated_holocore_home / "Animus" / "raw-chats" / report.world_id)
+    assert paths["memory_shards"] == str(isolated_holocore_home / "Memories" / "animus.db")
+    assert paths["raw_chats"] == str(isolated_holocore_home / "Memories" / "ChatHistory" / report.world_id)
     connections = isolated_holocore_home / "Connections"
     assert json.loads((connections / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"]["holocore"]["cwd"] == str(isolated_holocore_home)
     codex = tomllib.loads((connections / ".codex/config.toml").read_text(encoding="utf-8"))
@@ -101,11 +101,10 @@ def test_git_is_initialized_only_when_requested(tmp_path: Path) -> None:
     root = tmp_path / "world"
     with patch("holocore.install.subprocess.run") as run:
         bootstrap_project(root, platforms=[], init_git=False)
-        run.assert_not_called()
+        assert not any(call.args[0][:2] == ["git", "init"] for call in run.call_args_list)
 
         bootstrap_project(root, platforms=[], init_git=True)
-        run.assert_called_once()
-        assert run.call_args.args[0][:2] == ["git", "init"]
+        assert any(call.args[0][:2] == ["git", "init"] for call in run.call_args_list)
 
 
 def test_bootstrap_merges_existing_mcp_and_repairs_codex_config(tmp_path: Path) -> None:

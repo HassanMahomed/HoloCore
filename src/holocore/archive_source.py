@@ -17,12 +17,16 @@ def sync_archive_source(source: str | Path, home: Path | None = None) -> dict[st
     if home is None:
         from .home import HomeManager
         home = HomeManager().home
-    target_root = (Path(home).resolve() / "Archive" / "Worlds" / "Second Brain" / "wiki").resolve()
+    from .folder_layout import HomeLayout
+    target_root = (HomeLayout(home).project_knowledge("Second Brain") / "wiki").resolve()
     if target_root == source_path or source_path in target_root.parents:
         raise ValueError("Archive source cannot be inside the HoloCore Second Brain World")
     copied: list[str] = []
     skipped: list[str] = []
     conflicts: list[str] = []
+    target_root.mkdir(parents=True, exist_ok=True)
+    from .folder_layout import ensure_legacy_aliases
+    ensure_legacy_aliases(home)
     for path in sorted(source_path.rglob("*")):
         if not path.is_file() or path.suffix.lower() != ".md":
             continue

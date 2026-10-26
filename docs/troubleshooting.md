@@ -169,7 +169,7 @@ holocore sync-all
 
 ## Obsidian shows only part of the knowledge
 
-Open `<Home>/Archive` as the vault root. Opening `Worlds/<world-id>` alone hides `Shared` and other World sections.
+Open `<Home>/Knowledge` as the vault root. Opening `Worlds/<world-id>` alone hides `Shared` and other World sections.
 
 ## An original reference application is missing
 

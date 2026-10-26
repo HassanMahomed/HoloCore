@@ -177,9 +177,9 @@ def test_two_worlds_share_one_home_and_animus_without_private_archive_leakage(
     assert alpha_config.home == beta_config.home == isolated_holocore_home
     assert alpha_config.world_id != beta_config.world_id
     assert alpha_config.vault != beta_config.vault
-    assert alpha_config.animus_path == beta_config.animus_path == isolated_holocore_home / "Animus" / "animus.db"
-    assert alpha_config.raw_chats_path == isolated_holocore_home / "Animus" / "raw-chats" / "Alpha World"
-    assert beta_config.raw_chats_path == isolated_holocore_home / "Animus" / "raw-chats" / "Beta World"
+    assert alpha_config.animus_path == beta_config.animus_path == isolated_holocore_home / "Memories" / "animus.db"
+    assert alpha_config.raw_chats_path == isolated_holocore_home / "Memories" / "ChatHistory" / "Alpha World"
+    assert beta_config.raw_chats_path == isolated_holocore_home / "Memories" / "ChatHistory" / "Beta World"
     assert not (alpha / ".holocore").exists()
     assert not (beta / ".holocore").exists()
 

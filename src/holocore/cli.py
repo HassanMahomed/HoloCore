@@ -80,7 +80,7 @@ Your data
   This project's knowledge  {paths['world_archive']}
   Code map                  {paths['atlas_json']} ({atlas['nodes']} items)
   Code map visual           {paths['atlas_html']}
-  Activity memory           {paths['memory_shards']}
+  Memories                  {paths['memory_shards']}
   Raw chat audit            {paths['raw_chats']}
   Source Inbox              {paths['ingest_inbox']}
   Immutable raw sources     {paths['raw_sources']}
@@ -122,7 +122,7 @@ def _format_status(value: dict) -> str:
 Project:         {value['world']}
 Knowledge:       {value['paths']['archive']}
 Code map:        {value['paths']['atlas_json']} ({'fresh' if value['atlas'].get('fresh') else 'missing or stale'})
-Activity memory: {value['paths']['memory_shards']}
+Memories:        {value['paths']['memory_shards']}
 
 AI connections
   Claude Code: {'connected' if claude['connected'] else claude['detail']} · capture {'on' if claude['capture'] else 'off'} · {claude['slash_commands']} slash commands · {claude['skills']} skills
@@ -143,7 +143,7 @@ def _open_folder(path: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(prog="holocore", description="Unified local knowledge engine")
     parser.add_argument("--version", action="version", version=__version__)
-    parser.add_argument("--root", default=".", help="World/project directory (default: current directory)")
+    parser.add_argument("--root", default=".", help="Project directory (default: current directory)")
     parser.add_argument("--json", action="store_true", help="Print stable machine-readable JSON")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -162,7 +162,10 @@ def main() -> int:
     connect.add_argument("--home", help="Shared HoloCore Home directory")
     _platform_options(connect)
     sub.add_parser("paths", help="Show every HoloCore data and integration location")
-    sub.add_parser("open-archive", help="Open the visible Archive folder")
+    sub.add_parser("open-archive", aliases=["open-knowledge"], help="Open the visible Knowledge vault")
+    migration = sub.add_parser("migrate-layout", help="Rename legacy Home folders while preserving compatibility paths")
+    migration.add_argument("--home", help="Shared HoloCore Home directory")
+    migration.add_argument("--apply", action="store_true", help="Apply the in-place folder rename (default is preview)")
     sub.add_parser("status")
     sub.add_parser("detect-clients", help="Find supported AI clients installed on this computer")
     sub.add_parser("connections", help="Show which installed AI clients are connected to HoloCore")
@@ -201,8 +204,8 @@ def main() -> int:
     cleanup = sub.add_parser("cleanup", help="Safely remove legacy HoloCore files from this project")
     cleanup.add_argument("--apply", action="store_true", help="Actually remove verified legacy artifacts")
     search = sub.add_parser("search"); search.add_argument("query"); search.add_argument("--world")
-    sub.add_parser("atlas-refresh")
-    sub.add_parser("atlas-html"); sub.add_parser("atlas-view")
+    sub.add_parser("atlas-refresh", help="Refresh the project Code Map")
+    sub.add_parser("atlas-html", help="Generate the interactive Code Map view"); sub.add_parser("atlas-view", help="Generate and open the Code Map view")
     atlas_search = sub.add_parser("atlas-search"); atlas_search.add_argument("query")
     atlas_explain = sub.add_parser("atlas-explain"); atlas_explain.add_argument("query")
     atlas_path = sub.add_parser("atlas-path"); atlas_path.add_argument("source"); atlas_path.add_argument("target"); atlas_path.add_argument("--max-depth", type=int)
@@ -210,7 +213,7 @@ def main() -> int:
     atlas_neighborhood = sub.add_parser("atlas-neighborhood"); atlas_neighborhood.add_argument("query"); atlas_neighborhood.add_argument("--depth", type=int, default=1)
     atlas_export = sub.add_parser("atlas-export"); atlas_export.add_argument("output"); atlas_export.add_argument("--format", action="append", dest="formats")
     sub.add_parser("atlas-audit")
-    atlas_constellations = sub.add_parser("atlas-constellations"); atlas_constellations.add_argument("--min-size", type=int, default=2)
+    atlas_constellations = sub.add_parser("atlas-constellations", help="List related Code Map clusters"); atlas_constellations.add_argument("--min-size", type=int, default=2)
     mine = sub.add_parser("mine"); mine.add_argument("path", nargs="?", default="."); mine.add_argument("--sector", default="project"); mine.add_argument("--mode", choices=("files", "conversations", "git"), default="files"); mine.add_argument("--ignore", action="append", default=[])
     sync = sub.add_parser("animus-sync"); sync.add_argument("--sector", default="project"); sync.add_argument("--mode", choices=("files", "conversations", "git"), default="files")
     checkpoint = sub.add_parser("animus-checkpoint"); checkpoint.add_argument("--sector", default="project"); checkpoint.add_argument("--mode", choices=("files", "conversations", "git"), default="files"); checkpoint.add_argument("--source", default="")
@@ -260,6 +263,24 @@ def main() -> int:
     handoff.add_argument("run_id", nargs="?")
     handoff.add_argument("--actions", type=int, default=50)
     handoff.add_argument("--items", type=int, default=100)
+    handoffs = sub.add_parser("handoffs", help="Create, claim, and track work passed between agents")
+    handoffs_sub = handoffs.add_subparsers(dest="handoffs_command", required=True)
+    handoff_create = handoffs_sub.add_parser("create", help="Create claimable work from an agent run")
+    handoff_create.add_argument("run_id")
+    handoff_create.add_argument("--title", default="")
+    handoff_create.add_argument("--note", default="", help="Short next-step note; do not include credentials or prompts")
+    handoff_list = handoffs_sub.add_parser("list", help="List work handed between agents")
+    handoff_list.add_argument("--status", choices=("open", "claimed", "completed", "abandoned"))
+    handoff_list.add_argument("--limit", type=int, default=100)
+    handoff_claim = handoffs_sub.add_parser("claim", help="Claim open work and load its agent context")
+    handoff_claim.add_argument("handoff_id")
+    handoff_claim.add_argument("--agent", required=True)
+    for outcome in ("complete", "abandon"):
+        description = "Complete a claimed handoff" if outcome == "complete" else "Abandon an open or claimed handoff"
+        close = handoffs_sub.add_parser(outcome, help=description)
+        close.add_argument("handoff_id")
+        close.add_argument("--agent", required=outcome == "complete", default="")
+        close.add_argument("--reason", default="")
     runs = sub.add_parser("runs", help="Inspect recorded agent runs and actions")
     runs_sub = runs.add_subparsers(dest="runs_command", required=True)
     runs_list = runs_sub.add_parser("list"); runs_list.add_argument("--limit", type=int, default=100)
@@ -323,7 +344,7 @@ def main() -> int:
         value = manager.select_home(selected_path) if selected_path else {
             "home": str(manager.home), "archive": str(manager.archive), "worlds_file": str(manager.worlds_path), "selected": manager.pointer_path.exists()
         }
-        print(json.dumps(value, indent=2, default=str) if args.json else f"HoloCore Home: {value['home']}\nObsidian Archive: {Path(value['home']) / 'Archive'}\nWorld registry: {Path(value['home']) / 'worlds.json'}")
+        print(json.dumps(value, indent=2, default=str) if args.json else f"HoloCore Home: {value['home']}\nKnowledge vault: {value['archive']}\nWorld registry: {Path(value['home']) / 'worlds.json'}")
         return 0
     if args.command in {"worlds", "projects"}:
         value = HomeManager().list_worlds()
@@ -402,14 +423,28 @@ def main() -> int:
         value = uninstall_tool()
         print(json.dumps(value, indent=2) if args.json else "HoloCore CLI uninstalled. Project and Home data were preserved.")
         return 0
-    if args.command == "open-archive":
+    if args.command in {"open-archive", "open-knowledge"}:
         config = Config.load(root=root)
-        archive = (config.home / "Archive") if config.home else config.vault
+        from .folder_layout import HomeLayout
+        archive = HomeLayout(config.home).knowledge if config.home else config.vault
         if not archive.is_dir():
             parser.error(f"Archive does not exist yet: {archive}. Run `holocore setup` first.")
         _open_folder(archive)
         value = {"opened": str(archive)}
-        print(json.dumps(value, indent=2) if args.json else f"Opened Archive: {archive}")
+        print(json.dumps(value, indent=2) if args.json else f"Opened Knowledge vault: {archive}")
+        return 0
+    if args.command == "migrate-layout":
+        from .folder_layout import migrate_home
+        try:
+            value = migrate_home(args.home or str(HomeManager().home), apply=args.apply)
+        except RuntimeError as exc:
+            parser.error(str(exc))
+        print(json.dumps(value, indent=2) if args.json else (
+            f"Folder migration {'completed' if value.get('applied') else 'previewed'}.\n"
+            f"Home: {value['home']}\n"
+            f"Moves: {len(value['moves'])}\n"
+            + (f"Compatibility aliases: {value.get('aliases', 0)}\nJournal: {value.get('journal')}" if value.get('applied') else "Run `holocore migrate-layout --apply` to apply these renames.")
+        ))
         return 0
 
     engine = HoloCoreEngine(root)
@@ -504,11 +539,21 @@ def main() -> int:
             value = engine.remember(args.content, args.sector, args.source)
         else:
             engine.router.ensure_memory_scope(); value = [r.__dict__ for r in engine.router.animus.search(args.query, world=engine.router.world_id, sector=args.sector)]
-    elif args.command in {"activity", "handoff", "runs", "activity-status"}:
+    elif args.command in {"activity", "handoff", "handoffs", "runs", "activity-status"}:
         from .activity import ActivityLedger
         config = Config.load(root=root); ledger = ActivityLedger(config.animus_path); project_id = config.world_id or root.name
         if args.command == "activity-status": value = ledger.status(project_id=project_id)
         elif args.command == "handoff": value = ledger.handoff(project_id=project_id, run_id=args.run_id, action_limit=args.actions, item_limit=args.items)
+        elif args.command == "handoffs":
+            if args.handoffs_command == "create":
+                value = ledger.create_handoff(project_id=project_id, run_id=args.run_id, title=args.title, note=args.note)
+            elif args.handoffs_command == "list":
+                value = ledger.handoffs(project_id=project_id, status=args.status, limit=args.limit)
+            elif args.handoffs_command == "claim":
+                value = ledger.claim_handoff(args.handoff_id, project_id=project_id, agent=args.agent)
+            else:
+                outcome = "completed" if args.handoffs_command == "complete" else "abandoned"
+                value = ledger.close_handoff(args.handoff_id, project_id=project_id, outcome=outcome, agent=args.agent, reason=args.reason)
         elif args.command == "activity":
             if args.activity_command == "status": value = ledger.status(project_id=project_id)
             elif args.activity_command == "runs": value = ledger.runs(project_id=project_id, limit=args.limit)

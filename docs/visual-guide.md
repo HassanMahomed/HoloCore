@@ -22,8 +22,8 @@ Think of the selected **HoloCore Home** as one building:
 | Part | Simple comparison | What it keeps | Where it lives |
 |---|---|---|---|
 | **HoloCore Home** | One shared building | Archive vault and World registry | `<Home>` |
-| **World Archive** | One project's library room | Verified notes and promoted memory | `<Home>/Archive/Worlds/<world-id>` |
-| **Shared** | Common shelf | Explicit cross-project knowledge | `<Home>/Archive/Shared` |
+| **World Archive** | One project's library room | Verified notes and promoted memory | `<Home>/Knowledge/Projects/<world-id>` |
+| **Shared** | Common shelf | Explicit cross-project knowledge | `<Home>/Knowledge/Shared` |
 | **Atlas** | Project blueprint | Files, symbols, dependencies, paths, clusters, audits, exports | `<project>/graphify-out` |
 | **Animus** | Project diary | Previous work and refined conversations | `<project>/.holocore` |
 | **Raw chat audit** | Original evidence box | Source conversations before refinement | `<project>/.holocore/raw-chats` |
@@ -50,9 +50,9 @@ holocore setup --home <Home>
 
 The current project receives a generated World ID and an Archive section:
 
-`<Home>/Archive/Worlds/<world-id>`
+`<Home>/Knowledge/Projects/<world-id>`
 
-The Home registry records the project path. Durable Shared knowledge remains at `<Home>/Archive/Shared`.
+The Home registry records the project path. Durable Shared knowledge remains at `<Home>/Knowledge/Shared`.
 
 ### Step 4 — Prepare local project state
 
@@ -164,7 +164,7 @@ Animus deduplicates the extraction, attaches provenance, and stores it in the ac
 
 Useful extraction automatically becomes a durable Markdown note in:
 
-`<Home>/Archive/Worlds/<world-id>/wiki/memory`
+`<Home>/Knowledge/Projects/<world-id>/wiki/memory`
 
 The name includes a date and content digest, so the same extraction is not repeatedly promoted.
 

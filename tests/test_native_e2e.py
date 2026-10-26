@@ -16,9 +16,9 @@ def test_new_application_combines_wiki_graph_memory_git_and_ai_links(
     installed = engine.initialize(git=True)
     assert installed["git"] in {"created", "existing"}
     assert installed["home"] == str(isolated_holocore_home)
-    assert installed["paths"]["archive"] == str(isolated_holocore_home)
+    assert installed["paths"]["archive"] == str(isolated_holocore_home / "Knowledge")
     assert installed["paths"]["world_archive"].startswith(
-        str(isolated_holocore_home / "Archive" / "Worlds")
+        str(isolated_holocore_home / "Knowledge" / "Projects")
     )
     assert {path.name for path in world.iterdir()} == {".git"}
     connections = isolated_holocore_home / "Connections"

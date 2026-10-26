@@ -83,7 +83,7 @@ Each World keeps its runtime in the project:
 
 Setup also merges MCP configuration, generated commands, client instructions, and Codex project skills. Unrelated settings are preserved. Existing invalid configuration is skipped or repaired only when HoloCore can safely identify its own section.
 
-If the project has an older top-level `Archive`, setup copies Markdown into `<Home>/Archive/Worlds/<world-id>/Imported`. Identical files are skipped and conflicting files are left untouched.
+If the project has an older top-level `Archive`, setup copies Markdown into `<Home>/Knowledge/Projects/<project-id>/Imported`. Identical files are skipped and conflicting files are left untouched.
 
 ## 4. Approve the client connections
 
@@ -127,7 +127,7 @@ holocore worlds
 Obsidian is not required. To use it:
 
 1. Choose **Open folder as vault**.
-2. Select `<Home>/Archive`.
+2. Select `<Home>/Knowledge`.
 
 Open only this one Archive root. Do not open an individual World as a separate vault unless you intentionally want an incomplete view.
 
@@ -151,7 +151,7 @@ holocore atlas-view
 | `holocore update` | Update HoloCore from Git, then reconcile all Worlds |
 | `holocore install-check` | Check the installed version and show update/uninstall commands |
 | `holocore uninstall` | Remove the CLI while preserving Home and project data |
-| `holocore open-archive` | Open `<Home>/Archive` |
+| `holocore open-archive` | Open `<Home>/Knowledge` |
 
 Use `--platform` repeatedly with `setup` or `connect` to configure only selected clients.
 
@@ -180,6 +180,6 @@ Uninstall the tool with:
 uv tool uninstall holocore
 ```
 
-Uninstalling the tool does not delete `<Home>/Archive`, `<Home>/worlds.json`, project-local `.holocore` state, or generated project integrations.
+Uninstalling the tool does not delete `<Home>/Knowledge`, `<Home>/worlds.json`, project-local `.holocore` state, or generated project integrations.
 
 Changing Home with `holocore home <Home>` selects a different registry and vault; it does not move data from the previous Home. Run setup in each project you want to register with the new Home.

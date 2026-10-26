@@ -25,10 +25,14 @@ def test_mcp_does_not_reply_to_notifications(monkeypatch, capsys):
     assert all(response["id"] is not None for response in responses)
 
 
-def test_v09_read_only_tools_are_advertised():
+def test_activity_and_handoff_tools_are_advertised():
     names = {tool["name"] for tool in mcp_server.TOOLS}
     assert {
         "holocore_activity_affected",
         "holocore_activity_handoff",
         "holocore_connections",
+        "holocore_handoffs_list",
+        "holocore_handoffs_create",
+        "holocore_handoffs_claim",
+        "holocore_handoffs_close",
     } <= names

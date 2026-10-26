@@ -33,5 +33,5 @@ def test_console_exposes_v09_activity_filters_handoffs_and_connections(
     assert payload["runs"]
     assert payload["run_handoffs"]
     assert set(payload["connections"]) == {"claude", "codex", "cursor", "gemini", "opencode"}
-    assert "Filter by agent, action, status, or affected item" in html
+    assert "Search agents, tools, status, or affected items" in html
     assert "AI connections" in html

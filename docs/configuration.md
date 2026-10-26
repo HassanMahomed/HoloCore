@@ -16,7 +16,7 @@ holocore home <Home>
 
 The user-level pointer contains the absolute Home path. `HOLOCORE_CONFIG_HOME` may be used to select the directory that stores this pointer, which is useful for isolated or portable profiles.
 
-Changing Home selects another `Archive` and `worlds.json`; it does not copy or delete data from the previous Home. Re-run `holocore setup` in each project that should join the new Home.
+Changing Home selects another `Knowledge` vault and `worlds.json`; it does not copy or delete data from the previous Home. Re-run `holocore setup` in each project that should join the new Home.
 
 ## Home and Archive paths
 
@@ -24,14 +24,14 @@ The default Home is `%USERPROFILE%\HoloCore` on Windows or `~/HoloCore` on other
 
 ```text
 <Home>/
-├── Archive/
-│   ├── Worlds/<world-id>/         Active-World durable knowledge
+├── Knowledge/
+│   ├── Projects/<project-id>/         Active-World durable knowledge
 │   ├── Shared/                    Explicit cross-project knowledge
 │   └── system/index.md
 └── worlds.json
 ```
 
-`<Home>/Archive` is the only Obsidian vault root. The active World uses `Archive/Worlds/<world-id>`. Archive operations target that World by default; paths beginning with `shared/` target `Archive/Shared`.
+`<Home>/Knowledge` is the only Obsidian vault root. The active World uses `Archive/Projects/<project-id>`. Archive operations target that World by default; paths beginning with `shared/` target `Knowledge/Shared`.
 
 ## Project configuration
 

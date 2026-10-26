@@ -44,6 +44,10 @@ Setup writes the exact Python executable, `-m holocore.mcp_server`, and HoloCore
 | `holocore_sync_all` | None | Write; reconciles every registered World and ensures Atlas freshness |
 | `holocore_activity_affected` | `query`; optional `limit` | Read; returns runs and actions that affected a matching file or directory |
 | `holocore_activity_handoff` | optional `run_id`, `action_limit`, `item_limit` | Read; creates a bounded privacy-safe handoff from structured activity |
+| `holocore_handoffs_list` | optional `status`, `limit` | Read; lists handoffs for the active project |
+| `holocore_handoffs_create` | `run_id`; optional `title`, `note` | Write; creates claimable work linked to an existing run |
+| `holocore_handoffs_claim` | `handoff_id`, `agent` | Write; atomically claims open work and returns its sanitized run context |
+| `holocore_handoffs_close` | `handoff_id`, `outcome`; optional `agent`, `reason` | Write; completes or abandons a handoff; claimed work requires the claiming agent |
 | `holocore_connections` | None | Read; reports installed and connected status for five supported AI clients |
 
 The `holocore_setup` tool requires a user-chosen `home` input. The generated setup prompt tells the AI client to ask the user where the shared Home should live before running the write.
@@ -52,8 +56,8 @@ The `holocore_setup` tool requires a user-chosen `home` input. The generated set
 
 The MCP server creates an `ArchiveView` with two roots:
 
-- default paths resolve inside `<Home>/Archive/Worlds/<world-id>`;
-- paths beginning with `shared/` resolve inside `<Home>/Archive/Shared`.
+- default paths resolve inside `<Home>/Knowledge/Projects/<project-id>`;
+- paths beginning with `shared/` resolve inside `<Home>/Knowledge/Shared`.
 
 Search reads both roots and labels each hit with `world` or `shared` scope. It does not search another World's private Archive section.
 
@@ -69,6 +73,6 @@ The files are installed by `setup` or `connect`; users still approve the MCP ser
 - Transport: local standard input/output
 - Result shape: JSON encoded in one MCP text-content item
 - Error shape: JSON-RPC code `-32000` with the exception message
-- Server version: `0.9.0`
+- Server version: `0.10.0`
 
 The server has no network authentication layer because it is launched as a local child process. The AI client, project configuration, operating-system permissions, and explicit client approval are the trust boundary.
