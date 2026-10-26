@@ -286,7 +286,7 @@ def main() -> int:
     runs_list = runs_sub.add_parser("list"); runs_list.add_argument("--limit", type=int, default=100)
     runs_show = runs_sub.add_parser("show"); runs_show.add_argument("run_id"); runs_show.add_argument("--limit", type=int, default=500)
     sub.add_parser("activity-status", help="Show Agent Activity Ledger counts")
-    capture_command = sub.add_parser("capture-hook", help=argparse.SUPPRESS); capture_command.add_argument("--client", choices=("claude", "codex"), required=True)
+    capture_command = sub.add_parser("capture-hook", help=argparse.SUPPRESS); capture_command.add_argument("--client", choices=("claude", "codex", "cursor", "gemini", "opencode"), required=True)
     sub.add_parser("mcp", help=argparse.SUPPRESS)
     args = parser.parse_args()
     root = Path(getattr(args, "path", None) or args.root).resolve() if args.command in {"setup", "init", "connect"} else Path(args.root).resolve()
@@ -301,6 +301,8 @@ def main() -> int:
         try:
             payload = json.loads(sys.stdin.read() or "{}")
             run(payload if isinstance(payload, dict) else {}, args.client)
+            if args.client in {"cursor", "gemini"}:
+                print("{}")
             return 0
         except Exception:
             return 0

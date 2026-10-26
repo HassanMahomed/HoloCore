@@ -16,7 +16,7 @@ from typing import Any, Mapping
 
 _TERMINAL_EVENTS = {"sessionend", "session_end"}
 _PAUSE_EVENTS = {"stop", "interrupt", "subagentstop", "subagent_stop"}
-_PATH_KEYS = {"path", "file", "file_path", "filepath", "target_path", "workdir"}
+_PATH_KEYS = {"path", "file", "file_path", "filepath", "file_path_after", "filePath", "target_path", "target_file", "targetfile", "workdir"}
 _SECRET_KEYS = re.compile(r"(token|secret|password|authorization|api[_-]?key|cookie)", re.I)
 
 
@@ -37,7 +37,7 @@ def _safe_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
     allowed = {
         "hook_event_name", "session_id", "turn_id", "agent_id", "agent_type",
         "model", "permission_mode", "tool_name", "tool", "reason", "source",
-        "cwd", "transcript_path", "is_error", "duration_ms",
+        "cwd", "transcript_path", "is_error", "duration_ms", "conversation_id",
     }
     result: dict[str, Any] = {}
     for key in allowed:
@@ -47,6 +47,39 @@ def _safe_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
         if isinstance(value, (str, int, float, bool)):
             text = str(value)
             result[key] = text[:2048] if isinstance(value, str) else value
+    return result
+
+
+def normalize_hook_payload(payload: Mapping[str, Any], client: str) -> dict[str, Any]:
+    """Map client-specific hook names into the shared, privacy-bounded event shape."""
+    result = dict(payload)
+    if client == "cursor":
+        result.setdefault("session_id", payload.get("conversation_id") or payload.get("generation_id"))
+        result.setdefault("event_id", ":".join(str(part) for part in (
+            payload.get("hook_event_name") or "event", payload.get("tool_use_id") or "",
+            payload.get("file_path") or "",
+            payload.get("timestamp") or payload.get("generation_id") or "",
+        )))
+        result.setdefault("model", payload.get("model_id"))
+        result.setdefault("duration_ms", payload.get("duration"))
+        result.setdefault("is_error", payload.get("isError") or payload.get("error_message") or payload.get("failure_type"))
+        result.setdefault("agent_id", payload.get("subagent_id"))
+        result.setdefault("agent_type", payload.get("subagent_type"))
+        result.setdefault("tool_name", payload.get("tool_name") or payload.get("tool"))
+    elif client == "gemini":
+        response = payload.get("tool_response")
+        result.setdefault("is_error", isinstance(response, Mapping) and bool(response.get("error")))
+    elif client == "opencode":
+        props = payload.get("properties")
+        props = props if isinstance(props, Mapping) else {}
+        info = props.get("info")
+        info = info if isinstance(info, Mapping) else {}
+        result.setdefault("session_id", payload.get("session_id") or props.get("sessionID") or props.get("session_id") or info.get("sessionID"))
+        result.setdefault("event_id", payload.get("event_id") or props.get("id") or payload.get("tool_use_id"))
+        result.setdefault("tool_name", payload.get("tool_name") or payload.get("tool"))
+        result.setdefault("model", payload.get("model") or props.get("model"))
+        result.setdefault("is_error", payload.get("is_error") or props.get("error"))
+        result.setdefault("hook_event_name", payload.get("hook_event_name") or payload.get("event") or payload.get("type"))
     return result
 
 
@@ -171,6 +204,7 @@ class ActivityLedger:
         return uuid.uuid5(uuid.NAMESPACE_URL, f"holocore:{project_id}:{agent}:{session_id}").hex
 
     def record_hook(self, payload: Mapping[str, Any], *, client: str, project_id: str) -> dict[str, Any]:
+        payload = normalize_hook_payload(payload, client)
         event = str(payload.get("hook_event_name") or payload.get("event") or "unknown").strip()
         session_id = str(payload.get("session_id") or payload.get("transcript_path") or "local-session").strip()
         agent_id = str(payload.get("agent_id") or "").strip()

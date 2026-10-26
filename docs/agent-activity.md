@@ -49,7 +49,7 @@ Conversation memory remains a separate feature with its existing raw-audit and d
 
 ## Client coverage
 
-HoloCore installs activity hooks for Claude Code and Codex events supported by their local hook systems, including session, prompt, tool, subagent, stop, and session-end events. Gemini CLI, Cursor, and OpenCode receive MCP connections; their activity coverage can expand when equivalent stable lifecycle hooks are available.
+HoloCore installs activity hooks for Claude Code and Codex events supported by their local hook systems, including session, prompt, tool, subagent, stop, and session-end events. Cursor and Gemini CLI add observational tool, file-edit, and session events. OpenCode uses a local plugin to record tool and session events. These three integrations record **Agent Activity only**; they do not copy prompts, replies, or transcripts into Chat History.
 
 Hooks are non-blocking. A ledger, transcript, code-map, or update-check failure must not prevent the parent AI client from continuing or ending its session.
 

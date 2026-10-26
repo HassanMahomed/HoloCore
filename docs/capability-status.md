@@ -1,4 +1,4 @@
-# HoloCore capabilities (v0.12.0 development)
+# HoloCore capabilities (v0.13.0 development)
 
 This page describes what users can do in the current version and its practical boundaries.
 
@@ -9,7 +9,7 @@ This page describes what users can do in the current version and its practical b
 | Code Map | Map files, symbols, and relationships; search, explain, trace paths, find affected items, audit, cluster, and export the map | Extraction is structural, not a full compiler; language detail varies |
 | Memories | Save and recall useful details from earlier work, decisions, and conversations; inspect timelines and remove duplicates | Recall is scoped to the active project; embeddings require a configured provider |
 | Chat History | Capture supported Claude Code and Codex session events and transcript checkpoints | Other clients can connect to HoloCore but do not yet have equivalent capture hooks |
-| Agent Activity | Review agent runs, actions, status, timestamps, tools, and affected files; find activity by file | Prompts, full tool payloads, credentials, and secrets are excluded from the activity ledger |
+| Agent Activity | Review agent runs, actions, status, timestamps, tools, and affected files across Claude Code, Codex, Cursor, Gemini CLI, and OpenCode; find activity by file | Cursor, Gemini CLI, and OpenCode contribute activity only; prompts, full tool payloads, credentials, and secrets are excluded |
 | Agent Handoffs | Create work linked to an agent run, list it, claim it once, then complete or abandon it through the CLI or MCP | A handoff contains sanitized recorded context and its short user-authored note |
 | AI connections | Detect supported clients and offer non-destructive connections; upgrades rescan for newly installed clients | Client trust prompts remain controlled by each AI application |
 | Updates | Update the CLI and reconcile registered projects; optionally check once per day during real HoloCore activity | Automatic updates are session-driven and do not run a resident service or scheduled task |

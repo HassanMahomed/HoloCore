@@ -1,4 +1,4 @@
-"""Non-blocking Claude/Codex hook entrypoint for automatic conversation capture."""
+"""Non-blocking AI-client hook entrypoint for activity and chat capture."""
 
 from __future__ import annotations
 
@@ -73,6 +73,12 @@ def run(payload: Mapping[str, Any], client: str) -> dict[str, Any]:
             # Updates are opportunistic. A missing network connection or an
             # updater problem must never delay or break the parent AI client.
             pass
+    if client in {"cursor", "gemini", "opencode"}:
+        # These clients currently contribute action history only. Their hooks
+        # must not copy prompts, replies, or raw transcripts into Chat History.
+        result = {"captured": False, "reason": "activity-only-client", "activity": activity}
+        _diagnostic(root, payload, result)
+        return result
     state = root / ".holocore" / "capture-state.json"
     report = capture_hook(payload, client, state)
     messages = list(report.get("messages", [])) or _fallback_messages(payload)
@@ -105,7 +111,9 @@ def run(payload: Mapping[str, Any], client: str) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--client", choices=("claude", "codex"), required=True)
+    parser.add_argument(
+        "--client", choices=("claude", "codex", "cursor", "gemini", "opencode"), required=True
+    )
     args = parser.parse_args()
     try:
         raw = sys.stdin.read()
@@ -113,9 +121,10 @@ def main() -> int:
         result = run(payload if isinstance(payload, dict) else {}, args.client)
     except Exception as exc:
         result = {"captured": False, "reason": f"hook-error:{type(exc).__name__}"}
-    # Hook response schemas differ across clients. Keep the rich capture
-    # result in capture-diagnostics.jsonl and emit no stdout so Codex, Claude,
-    # and future clients cannot reject an otherwise successful capture.
+    # Gemini and Cursor require JSON hook responses. Empty objects preserve
+    # observational behavior; all useful details remain in the local ledger.
+    if args.client in {"cursor", "gemini"}:
+        sys.stdout.write("{}\n")
     return 0
 
 

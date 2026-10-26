@@ -2,7 +2,7 @@
 
 ![HoloCore Context Engine icon](docs/assets/holocore-icon.png)
 
-**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `0.12.0` uses plain folder names and includes an in-place migration with legacy path compatibility.
+**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `0.13.0` adds local agent activity capture for Cursor, Gemini CLI, and OpenCode alongside Claude Code and Codex.
 
 ![HoloCore checks project readiness, uses the Code Map and Knowledge, recalls prior work when relevant, and sends focused context to reduce input tokens](docs/assets/holocore-context-engine-token-savings.png)
 
@@ -69,6 +69,7 @@ The shared Obsidian view can refresh automatically. `holocore watch --install --
 Setup installs local capture hooks for supported clients:
 
 - Claude Code and Codex record session, prompt, tool, subagent, stop, and session-end events supported by the client.
+- Cursor, Gemini CLI, and OpenCode record supported tool, file-edit, and session lifecycle events as activity only.
 - Conversation content is captured at safe transcript checkpoints.
 - The activity ledger records the agent, action, status, time, and affected file paths without storing tool payloads, prompts, secrets, or authorization values.
 
@@ -207,6 +208,7 @@ The current release includes code-map clusters, audits, relationship paths and e
 - [What is new in v0.11](docs/v0.11.md)
 - [Folder naming and in-place migration plan](docs/folder-layout-migration-plan.md)
 - [Version 0.12 release notes](docs/v0.12.md)
+- [Version 0.13 release notes](docs/v0.13.md)
 - [What is new in v0.10](docs/v0.10.md)
 - [What is new in v0.9](docs/v0.9.md)
 - [Prerequisites and optional graph tools](docs/prerequisites.md)
