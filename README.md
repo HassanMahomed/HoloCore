@@ -2,11 +2,11 @@
 
 ![HoloCore Context Engine icon](docs/assets/holocore-icon.png)
 
-**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `0.9.0` combines verified project knowledge, a structural code map, conversation memory, searchable agent impact history, and lightweight cross-agent handoffs behind one CLI, MCP server, and browser Console.
+**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `0.12.0` uses plain folder names and includes an in-place migration with legacy path compatibility.
 
-![HoloCore Context Engine checks Atlas, reads matching Archive knowledge, optionally recalls Animus history, and sends focused context to reduce input tokens](docs/assets/holocore-context-engine-token-savings.png)
+![HoloCore checks project readiness, uses the Code Map and Knowledge, recalls prior work when relevant, and sends focused context to reduce input tokens](docs/assets/holocore-context-engine-token-savings.png)
 
-![HoloCore Home and World storage model](docs/assets/holocore-home-world-structure.svg)
+![HoloCore Home and project storage model](docs/assets/holocore-home-world-structure.svg)
 
 The runtime is HoloCore-native. It does not import, launch, or require the original Obsidian Second Brain, Graphify, or MemPalace applications. Those projects were behavioral references for the rewrite and are not runtime components.
 
@@ -16,33 +16,37 @@ HoloCore gives an AI assistant three kinds of context, using plain names in the 
 
 - **Knowledge:** verified notes, rules, and decisions.
 - **Code Map:** files, functions, dependencies, and relationships.
-- **Activity Memory:** previous work, conversations, errors, and useful events.
+- **Memories:** useful details from previous work, conversations, errors, and decisions.
 
-You choose one **HoloCore Home**. Its `Archive` folder is one Obsidian-ready vault shared by every registered project. Internal storage keeps the older `Archive`, `Atlas`, `Animus`, and `World` names so existing installations and integrations remain compatible.
+You choose one **HoloCore Home**. `Knowledge` is one Obsidian-ready vault shared by every registered project. Old installs can migrate in place; legacy folder names remain available as junctions for older HoloCore versions and existing links.
 
 ```text
 <Home>/
-├── Archive/                       One Obsidian vault
-│   ├── Worlds/<world-id>/         Durable knowledge for one project
+├── Knowledge/                     One Obsidian vault
+│   ├── Projects/<project-id>/     Durable knowledge for one project
 │   ├── Shared/                    Knowledge intentionally shared by projects
 │   └── system/index.md            Vault entry point
-└── worlds.json                    Registered World list
-
-<Home>/
-├── Animus/animus.db                Shared SQLite memory and chat history
-├── Animus/raw-chats/<world>/        Immutable original chat audits
-└── Projects/<world>/Atlas/         Per-World graph.json and atlas.html
+├── Projects/<project-id>/CodeMap/  Project code map
+├── Memories/                       Memory database and chat history
+│   ├── animus.db                   Kept for database compatibility
+│   └── ChatHistory/<project-id>/   Original chat audits
+├── Connections/                    AI client setup
+└── worlds.json                     Kept for registry compatibility
 ```
 
-Archive is shared as a vault, but retrieval remains scoped: HoloCore searches the active World's entries and `Shared`, not every other World.
+Knowledge is shared as a vault, but retrieval remains scoped: HoloCore searches the active project's entries and `Shared`, not every other project's entries.
+
+For an existing installation, preview the one-time rename with `holocore migrate-layout`, then apply it with `holocore migrate-layout --apply`. HoloCore updates do not rename personal folders automatically. The migration keeps `worlds.json` and `animus.db` in their existing roles and creates legacy folder junctions when Windows supports them.
+
+Open the vault with `holocore open-knowledge` (`holocore open-archive` remains supported).
 
 ## How retrieval works
 
 HoloCore builds one route and executes it once:
 
-`readiness check → Atlas → active World Archive + Shared → Animus when history matters → exact sources`
+`readiness check → Code Map → project Knowledge + Shared → Memories when history matters → exact sources`
 
-`holocore search` checks Atlas freshness and refreshes the local graph when required. Atlas narrows the project scope first. Archive adds verified knowledge. Animus runs last only for questions about earlier work, errors, attempts, or conversations. Every selected subsystem runs at most once, and a recursion guard prevents a HoloCore search from routing back into itself.
+`holocore search` checks the Code Map freshness and refreshes it when required. The map narrows the project scope first. Knowledge adds verified notes. Memories are searched only for questions about earlier work, errors, attempts, or conversations. Every selected source runs at most once, and a recursion guard prevents a HoloCore search from routing back into itself.
 
 ## Benchmark results
 
@@ -68,7 +72,7 @@ Setup installs local capture hooks for supported clients:
 - Conversation content is captured at safe transcript checkpoints.
 - The activity ledger records the agent, action, status, time, and affected file paths without storing tool payloads, prompts, secrets, or authorization values.
 
-The hook reads only new transcript content, stores a raw audit under the project, distills useful Memory Shards into local Animus, and automatically promotes useful facts, decisions, preferences, entities, and summaries into the active World's Archive. Promotion uses deterministic names and deduplication so the same extraction is not repeatedly added.
+The hook reads only new transcript content, stores a raw audit under the project, distills useful memories into HoloCore's local memory store, and automatically promotes useful facts, decisions, preferences, entities, and summaries into the active project's Knowledge. Promotion uses deterministic names and deduplication so the same extraction is not repeatedly added.
 
 Hooks are installed automatically but require client trust once:
 
@@ -122,30 +126,32 @@ holocore console                    # open the local browser Console
 holocore connections                # installed versus connected AI clients
 holocore activity affected "app.py" # agents and actions that touched an item
 holocore handoff                    # bounded summary for the next agent
+holocore handoffs create <run-id> --title "Continue release work"
+holocore handoffs list --status open
 ```
 
-The Console brings conversations, memories, verified knowledge, the code map,
-agent runs, affected items, storage locations, and AI commands into one local
+The Console brings chat history, memories, verified knowledge, the code map,
+agent activity, affected items, storage locations, and commands into one local
 view. Knowledge edits are validated; captured conversations remain immutable.
 
-Use the World selector in the Console header to move between registered
+Use the Project selector in the Console header to move between registered
 projects without restarting the server. The Commands tab is grouped by
-purpose; the other tabs are scoped to the selected World.
+purpose; the other sections are scoped to the selected project.
 
-Console panels and triggers:
+Console sections:
 
-- **Conversations** — captured provider transcripts, dates, sources, and searchable text.
-- **Activity** — memories, focused collections, history, provenance, and episodic context.
+- **Chat History** — captured provider transcripts, dates, sources, and searchable text.
+- **Memories** — saved details from earlier work and conversations.
 - **Knowledge** — editable Markdown notes with managed/user-owned provenance and source links.
 - **Code Map** — project items, relationships, paths, explanations, and clusters.
-- **Agent Runs** — filter each agent and subagent run by agent, action, status, tool, or affected item; see handoff totals at a glance.
+- **Agent Activity** — filter agents by action, status, tool, or affected item; see handoff totals at a glance.
 - **Locations** — exact Home, project, memory, knowledge, code-map, raw-chat, and connection paths.
-- **AI Commands** — commands grouped by effect for Claude, Codex, and MCP clients.
-- **Maintenance** — ingest, resync, cleanup preview, diagnostics, migration, and freshness status.
+- **Commands** — available actions grouped by purpose for Claude, Codex, and MCP clients.
+- **Setup & Updates** — connections, diagnostics, cleanup preview, migration, and freshness status.
 
 The older technical names remain accepted by the CLI and MCP API for backward compatibility, but new user-facing documentation prefers project, knowledge, code map, activity, memory, item, and cluster.
 
-Open `<Home>/Archive` as one Obsidian vault if you want Obsidian's Markdown and graph interface. Obsidian is optional; HoloCore works from the CLI and AI clients without it.
+Open `<Home>/Knowledge` as one Obsidian vault if you want Obsidian's Markdown and graph interface. Obsidian is optional; HoloCore works from the CLI and AI clients without it.
 
 ## Keep every project current
 
@@ -185,19 +191,23 @@ Use `holocore detect-clients` to inspect detection, `holocore connections` to di
 
 ## Legacy/internal vocabulary
 
-Existing installations, paths, and APIs keep these mappings: **Archive = Knowledge**, **Atlas = Code Map**, **Animus = Activity Memory**, **World = Project**, **Sector = Area**, **Memory Shard = Memory**, **Archive Entry = Knowledge Note**, **Signal = Item**, **Constellation = Cluster**, **Deck = Collection**, and **Chronicle = History**.
+Existing installations, paths, and APIs keep these mappings: **Archive = Knowledge**, **Atlas = Code Map**, **Animus = Memories**, **World = Project**, **Sector = Area**, **Memory Shard = Memory**, **Archive Entry = Knowledge Note**, **Signal = Item**, **Constellation = Cluster**, **Deck = Collection**, and **Chronicle = History**.
 
 ## Documentation
 
 ![HoloCore parity release workflow](docs/assets/workflow-parity-release.svg)
 
-The current release includes Atlas clustering, audits, explain/path analysis and exports; Animus mining, checkpoints, diary, consolidation and optional embedding retrieval; conflict-aware Archive promotion; native AI-client integration generation; and automated interface/parity checks. HoloCore's HTML Atlas is portable and AI-friendly. For the richest visual knowledge graph, open the shared `Archive` vault in Obsidian.
+The current release includes code-map clusters, audits, relationship paths and exports; memory search, timelines, consolidation and optional embedding retrieval; conflict-aware knowledge promotion; native AI-client integration generation; and claimable agent handoffs. The interactive Code Map is portable and searchable. For a Markdown knowledge view, open `<Home>/Knowledge` in Obsidian.
 
 - [Visual guide](docs/visual-guide.md)
 - [User guide](docs/user-guide.md)
 - [Installation guide](docs/installation.md)
 - [One-line Windows installation](docs/windows-installation.md)
 - [Agent activity ledger](docs/agent-activity.md)
+- [What is new in v0.11](docs/v0.11.md)
+- [Folder naming and in-place migration plan](docs/folder-layout-migration-plan.md)
+- [Version 0.12 release notes](docs/v0.12.md)
+- [What is new in v0.10](docs/v0.10.md)
 - [What is new in v0.9](docs/v0.9.md)
 - [Prerequisites and optional graph tools](docs/prerequisites.md)
 - [Workflow guide](docs/workflows.md)

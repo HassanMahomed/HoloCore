@@ -51,7 +51,7 @@ def test_viewer_bundle_renders_once_to_public_and_compatibility_paths(tmp_path: 
     assert written == outputs
     payloads = [path.read_text(encoding="utf-8") for path in outputs]
     assert len(set(payloads)) == 1
-    assert 'name="holocore-atlas-viewer" content="3"' in payloads[0]
+    assert 'name="holocore-atlas-viewer" content="4"' in payloads[0]
     assert '<option value="knowledge">Knowledge</option>' in payloads[0]
     assert "isKnowledge" in payloads[0]
     assert "deconflictLabels" in payloads[0]
@@ -70,7 +70,7 @@ def test_command_catalog_has_required_cross_platform_commands() -> None:
         "init", "search", "remember", "recall", "animus-sync", "animus-checkpoint", "diary", "timeline", "consolidate", "animus-export",
         "atlas-refresh", "atlas-view", "atlas-explain", "atlas-path", "atlas-affected", "atlas-neighborhood", "atlas-constellations", "atlas-audit", "atlas-export",
         "archive-search", "archive-create", "status", "doctor", "setup", "connect",
-        "home", "worlds", "global-graph", "obsidian-vault", "watch", "sync-all", "update", "install-check", "uninstall", "cleanup", "ingest", "inbox-sync", "paths", "open-archive",
+        "home", "worlds", "global-graph", "obsidian-vault", "watch", "sync-all", "update", "install-check", "uninstall", "cleanup", "ingest", "inbox-sync", "paths", "open-archive", "handoffs",
             "animus-decks", "animus-signal", "animus-chronicle", "console",
     }
     assert get_command("holocore-atlas-view").invocation.startswith("holocore atlas-view")

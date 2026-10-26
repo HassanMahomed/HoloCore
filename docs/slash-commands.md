@@ -24,7 +24,7 @@ for a focused knowledge search and `/holocore-doctor` for MCP diagnostics.
 | `holocore-sync-all` | Reconcile every World and ensure Atlas freshness | Yes |
 | `holocore-update` | Update HoloCore from Git and reconcile every World | Yes |
 | `holocore-paths` | Print every resolved data and integration path | No |
-| `holocore-open-archive` | Open `<Home>/Archive` | No data write |
+| `holocore-open-archive` | Open `<Home>/Knowledge` | No data write |
 | `holocore-status` | Report Home, World, Atlas, Animus, client, and capture health | No |
 | `holocore-search` | Run check-first Atlas → World/Shared Archive → optional Animus search | Generated Atlas refresh when stale |
 | `holocore-archive-search` | Search active World and Shared durable notes | No |

@@ -15,46 +15,50 @@ from . import __version__
 
 def _tool(name, description, properties=None, required=None):
     values = dict(properties or {})
-    values.setdefault("root", {"type": "string", "description": "Active World/project root for the single global HoloCore connection."})
+    values.setdefault("root", {"type": "string", "description": "Active project folder for the shared HoloCore connection."})
     return {"name": name, "description": description, "inputSchema": {"type": "object", "properties": values, "required": required or []}}
 TOOLS = [
     _tool("holocore_search", "Unified relevance-gated search", {"query": {"type": "string"}, "world": {"type": "string"}}, ["query"]),
-    _tool("holocore_status", "World, Archive, Atlas and Animus status"),
-    _tool("holocore_archive_search", "Search the curated wiki", {"query": {"type": "string"}}, ["query"]),
-    _tool("holocore_archive_read", "Read a wiki entry", {"path": {"type": "string"}}, ["path"]),
-    _tool("holocore_archive_create", "Create an AI-first wiki entry", {"path": {"type": "string"}, "title": {"type": "string"}, "content": {"type": "string"}}, ["path", "title", "content"]),
-    _tool("holocore_atlas_refresh", "Refresh the native structural graph"),
-    _tool("holocore_atlas_search", "Search structural signals", {"query": {"type": "string"}}, ["query"]),
-    _tool("holocore_atlas_explain", "Explain a resolved structural signal", {"query": {"type": "string"}}, ["query"]),
-    _tool("holocore_atlas_path", "Find a shortest Atlas path", {"source": {"type": "string"}, "target": {"type": "string"}, "max_depth": {"type": "integer"}}, ["source", "target"]),
-    _tool("holocore_atlas_affected", "Find signals affected by a target", {"query": {"type": "string"}, "depth": {"type": "integer"}}, ["query"]),
+    _tool("holocore_status", "Show project, knowledge, code map, memory, and connection status"),
+    _tool("holocore_archive_search", "Search verified project knowledge", {"query": {"type": "string"}}, ["query"]),
+    _tool("holocore_archive_read", "Read a project knowledge note", {"path": {"type": "string"}}, ["path"]),
+    _tool("holocore_archive_create", "Create or update a project knowledge note", {"path": {"type": "string"}, "title": {"type": "string"}, "content": {"type": "string"}}, ["path", "title", "content"]),
+    _tool("holocore_atlas_refresh", "Refresh the project Code Map"),
+    _tool("holocore_atlas_search", "Search files, code, and knowledge-map items", {"query": {"type": "string"}}, ["query"]),
+    _tool("holocore_atlas_explain", "Explain a mapped item and its source", {"query": {"type": "string"}}, ["query"]),
+    _tool("holocore_atlas_path", "Find the shortest relationship path between items", {"source": {"type": "string"}, "target": {"type": "string"}, "max_depth": {"type": "integer"}}, ["source", "target"]),
+    _tool("holocore_atlas_affected", "Find agent actions linked to a file or code item", {"query": {"type": "string"}, "depth": {"type": "integer"}}, ["query"]),
     _tool("holocore_atlas_neighborhood", "Inspect a local relationship neighborhood", {"query": {"type": "string"}, "depth": {"type": "integer"}}, ["query"]),
     _tool("holocore_atlas_audit", "Audit Atlas quality and unresolved relationships"),
-    _tool("holocore_atlas_constellations", "List deterministic Atlas constellations", {"min_size": {"type": "integer"}}),
-    _tool("holocore_atlas_html", "Generate a self-contained Atlas HTML viewer"),
+    _tool("holocore_atlas_constellations", "List groups of related Code Map items", {"min_size": {"type": "integer"}}),
+    _tool("holocore_atlas_html", "Generate the interactive Code Map view"),
     _tool("holocore_atlas_export", "Export Atlas JSON, HTML, Markdown, and a manifest", {"output": {"type": "string"}, "formats": {"type": "array"}}, ["output"]),
-    _tool("holocore_remember", "Store a scoped Memory Shard", {"content": {"type": "string"}, "sector": {"type": "string"}, "source": {"type": "string"}}, ["content"]),
-    _tool("holocore_recall", "Recall scoped episodic memory", {"query": {"type": "string"}, "sector": {"type": "string"}}, ["query"]),
+    _tool("holocore_remember", "Save a detail for later project work", {"content": {"type": "string"}, "sector": {"type": "string"}, "source": {"type": "string"}}, ["content"]),
+    _tool("holocore_recall", "Search memories from earlier project work", {"query": {"type": "string"}, "sector": {"type": "string"}}, ["query"]),
     _tool("holocore_ingest_chat", "Store raw chat and distill summary/facts", {"messages": {"type": "array"}, "sector": {"type": "string"}, "instructions": {"type": "string"}}, ["messages"]),
-    _tool("holocore_home", "Show the selected shared HoloCore Home and Obsidian vault"),
-    _tool("holocore_worlds", "List every project registered with the shared HoloCore Home"),
-    _tool("holocore_global_graph", "Build one Atlas-only graph across registered Worlds", {"output": {"type": "string"}}),
-    _tool("holocore_setup", "Register this World and connect supported AI clients. Ask the user to choose the shared HoloCore Home location first.", {"home": {"type": "string", "description": "User-chosen shared HoloCore Home directory"}}, ["home"]),
-    _tool("holocore_sync_all", "Reconcile every registered World after a HoloCore upgrade"),
+    _tool("holocore_home", "Show the selected HoloCore Home and knowledge vault"),
+    _tool("holocore_worlds", "List projects registered with the shared HoloCore Home"),
+    _tool("holocore_global_graph", "Build one Code Map across registered projects", {"output": {"type": "string"}}),
+    _tool("holocore_setup", "Register this project and connect supported AI clients. Ask the user to choose the shared HoloCore Home location first.", {"home": {"type": "string", "description": "User-chosen shared HoloCore Home directory"}}, ["home"]),
+    _tool("holocore_sync_all", "Reconcile every registered project after an upgrade"),
     _tool("holocore_activity_affected", "Find agent actions and runs that affected a file or directory", {"query": {"type": "string"}, "limit": {"type": "integer"}}, ["query"]),
     _tool("holocore_activity_handoff", "Create a privacy-bounded handoff from the latest or selected agent run", {"run_id": {"type": "string"}, "action_limit": {"type": "integer"}, "item_limit": {"type": "integer"}}),
+    _tool("holocore_handoffs_list", "List claimable and completed agent handoffs", {"status": {"type": "string"}, "limit": {"type": "integer"}}),
+    _tool("holocore_handoffs_create", "Create claimable work linked to a recorded agent run", {"run_id": {"type": "string"}, "title": {"type": "string"}, "note": {"type": "string"}}, ["run_id"]),
+    _tool("holocore_handoffs_claim", "Atomically claim an open handoff and return its sanitized run context", {"handoff_id": {"type": "string"}, "agent": {"type": "string"}}, ["handoff_id", "agent"]),
+    _tool("holocore_handoffs_close", "Complete or abandon a claimed handoff", {"handoff_id": {"type": "string"}, "outcome": {"type": "string", "enum": ["completed", "abandoned"]}, "agent": {"type": "string"}, "reason": {"type": "string"}}, ["handoff_id", "outcome"]),
     _tool("holocore_connections", "Show which supported AI clients are installed and connected"),
-    _tool("holocore_ingest", "Ingest a local file, folder, or HTTP(S) URL into immutable raw storage, scoped memory, a durable Archive Entry, and the current Atlas", {"source": {"type": "string"}, "title": {"type": "string"}}, ["source"]),
+    _tool("holocore_ingest", "Add a local file, folder, or URL to project sources, memories, knowledge, and the Code Map", {"source": {"type": "string"}, "title": {"type": "string"}}, ["source"]),
     _tool("holocore_inbox_sync", "Ingest new files from this World's visible source Inbox"),
     _tool("holocore_animus_mine", "Mine one explicitly scoped World using files, conversations, or Git history", {"mode": {"type": "string"}, "path": {"type": "string"}, "sector": {"type": "string"}}, ["mode"]),
-    _tool("holocore_animus_checkpoint", "Read the last scoped Animus mining checkpoint", {"mode": {"type": "string"}, "source": {"type": "string"}, "sector": {"type": "string"}}, ["mode", "source"]),
-    _tool("holocore_animus_diary", "Record an episodic diary entry in the active World", {"content": {"type": "string"}, "title": {"type": "string"}, "sector": {"type": "string"}}, ["content"]),
-    _tool("holocore_animus_timeline", "Read the active World's diary timeline", {"sector": {"type": "string"}, "limit": {"type": "integer"}}),
-    _tool("holocore_animus_consolidate", "Merge duplicate diary entries within one scope", {"sector": {"type": "string"}}),
-    _tool("holocore_animus_export", "Export scoped Animus diary records", {"sector": {"type": "string"}, "limit": {"type": "integer"}}),
-    _tool("holocore_animus_decks", "List bounded Decks in the active World"),
-    _tool("holocore_animus_signal", "Record a temporal Signal assertion", {"name": {"type": "string"}, "relation": {"type": "string"}, "value": {"type": "string"}, "kind": {"type": "string"}, "deck": {"type": "string"}}, ["name", "relation", "value"]),
-    _tool("holocore_animus_chronicle", "Read a Signal's temporal Chronicle", {"signal": {"type": "string"}, "deck": {"type": "string"}, "limit": {"type": "integer"}}),
+    _tool("holocore_animus_checkpoint", "Show the latest memory collection progress", {"mode": {"type": "string"}, "source": {"type": "string"}, "sector": {"type": "string"}}, ["mode", "source"]),
+    _tool("holocore_animus_diary", "Save an event to project memory", {"content": {"type": "string"}, "title": {"type": "string"}, "sector": {"type": "string"}}, ["content"]),
+    _tool("holocore_animus_timeline", "Show the timeline of project memories", {"sector": {"type": "string"}, "limit": {"type": "integer"}}),
+    _tool("holocore_animus_consolidate", "Merge duplicate saved memories", {"sector": {"type": "string"}}),
+    _tool("holocore_animus_export", "Export selected project memories", {"sector": {"type": "string"}, "limit": {"type": "integer"}}),
+    _tool("holocore_animus_decks", "List focused project memory groups"),
+    _tool("holocore_animus_signal", "Record a change to a named project item", {"name": {"type": "string"}, "relation": {"type": "string"}, "value": {"type": "string"}, "kind": {"type": "string"}, "deck": {"type": "string"}}, ["name", "relation", "value"]),
+    _tool("holocore_animus_chronicle", "Show the history for a named project item", {"signal": {"type": "string"}, "deck": {"type": "string"}, "limit": {"type": "integer"}}),
 ]
 PROMPTS = [
     {
@@ -130,6 +134,21 @@ def call(engine: HoloCoreEngine, name: str, args: dict):
     if name == "holocore_connections":
         from .install import inspect_client_connections
         return inspect_client_connections()
+    if name.startswith("holocore_handoffs_"):
+        from .activity import ActivityLedger
+        from .config import Config
+        config = Config.load(root=engine.root); project_id = config.world_id or engine.root.name
+        ledger = ActivityLedger(config.animus_path)
+        if name == "holocore_handoffs_list":
+            return ledger.handoffs(project_id=project_id, status=args.get("status"), limit=int(args.get("limit", 100)))
+        if name == "holocore_handoffs_create":
+            return ledger.create_handoff(project_id=project_id, run_id=args["run_id"], title=args.get("title", ""), note=args.get("note", ""))
+        if name == "holocore_handoffs_claim":
+            return ledger.claim_handoff(args["handoff_id"], project_id=project_id, agent=args["agent"])
+        return ledger.close_handoff(
+            args["handoff_id"], project_id=project_id,
+            outcome=args["outcome"], agent=args.get("agent", ""), reason=args.get("reason", ""),
+        )
     if name == "holocore_ingest": return engine.ingest_source(args["source"], title=args.get("title"))
     if name == "holocore_inbox_sync": return engine.sync_inbox()
     if name.startswith("holocore_animus_"):

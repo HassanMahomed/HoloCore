@@ -132,3 +132,73 @@ def test_handoff_rejects_unknown_run(tmp_path):
         assert "No recorded agent activity" in str(exc)
     else:
         raise AssertionError("Expected a missing run to fail clearly")
+
+
+def test_persistent_handoff_is_claimed_once_and_returns_run_context(tmp_path):
+    ledger = ActivityLedger(tmp_path / "activity.db")
+    recorded = ledger.record_hook(
+        {
+            "hook_event_name": "PostToolUse",
+            "session_id": "handoff-source",
+            "event_id": "handoff-source-action",
+            "tool_name": "edit",
+            "tool_input": {"file_path": str(tmp_path / "src" / "feature.py")},
+        },
+        client="codex",
+        project_id="project-1",
+    )
+    created = ledger.create_handoff(
+        project_id="project-1",
+        run_id=recorded["run_id"],
+        title="Continue the feature",
+        note="Review the modified file and run the acceptance checks.",
+    )
+
+    claimed = ledger.claim_handoff(created["id"], project_id="project-1", agent="codex")
+    repeated = ledger.claim_handoff(created["id"], project_id="project-1", agent="Codex")
+
+    assert claimed["status"] == "claimed"
+    assert claimed["claimed_by"] == "codex"
+    assert claimed["context"]["run"]["id"] == recorded["run_id"]
+    assert claimed["context"]["summary"]["affected_items"] == 1
+    assert repeated["claimed_at"] == claimed["claimed_at"]
+    assert ledger.handoffs(project_id="project-1", status="open") == []
+
+    try:
+        ledger.claim_handoff(created["id"], project_id="project-1", agent="claude")
+    except ValueError as exc:
+        assert "cannot be claimed" in str(exc)
+    else:
+        raise AssertionError("A second agent must not claim an already claimed handoff")
+
+
+def test_handoff_close_requires_claim_owner_and_retains_history(tmp_path):
+    ledger = ActivityLedger(tmp_path / "activity.db")
+    recorded = ledger.record_hook(
+        {"hook_event_name": "SessionEnd", "session_id": "close-source", "event_id": "close-event"},
+        client="claude",
+        project_id="project-1",
+    )
+    completed = ledger.create_handoff(project_id="project-1", run_id=recorded["run_id"], title="Finish work")
+    abandoned = ledger.create_handoff(project_id="project-1", run_id=recorded["run_id"], title="Skip work")
+    ledger.claim_handoff(completed["id"], project_id="project-1", agent="claude")
+
+    try:
+        ledger.close_handoff(completed["id"], project_id="project-1", outcome="completed", agent="codex")
+    except ValueError as exc:
+        assert "claimed this handoff" in str(exc)
+    else:
+        raise AssertionError("Only the claiming agent may complete claimed work")
+
+    done = ledger.close_handoff(
+        completed["id"], project_id="project-1", outcome="completed", agent="claude", reason="Finished"
+    )
+    cancelled = ledger.close_handoff(
+        abandoned["id"], project_id="project-1", outcome="abandoned", reason="No longer needed"
+    )
+
+    assert done["status"] == "completed"
+    assert done["claimed_by"] == "claude"
+    assert done["close_reason"] == "Finished"
+    assert cancelled["status"] == "abandoned"
+    assert {row["status"] for row in ledger.handoffs(project_id="project-1")} == {"completed", "abandoned"}

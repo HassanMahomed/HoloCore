@@ -67,7 +67,7 @@ Archive contains verified Markdown notes:
 
 1. Install Obsidian.
 2. Choose **Open folder as vault**.
-3. Select `<Home>/Archive`.
+3. Select `<Home>/Knowledge`.
 4. Open Obsidian's Graph view.
 
 Use this single vault root. `Worlds/<world-id>` keeps project knowledge separated, while `Shared` holds explicitly reusable notes.

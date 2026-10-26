@@ -50,21 +50,23 @@ class Config:
         registered = cls._registered_world(root)
         home = Path(registered["home"]) if registered else cls._selected_home()
         if home:
+            from .folder_layout import HomeLayout
+            folders = HomeLayout(home)
             if registered:
                 world_id = str(registered["id"])
             else:
                 from .home import HomeManager
                 world_id = HomeManager(home).world_id_for(root)
             world_dir = Path(registered.get("storage") or home / "Projects" / world_id) if registered else home / "Projects" / world_id
-            world_archive = home / "Archive" / "Worlds" / world_id
+            world_archive = folders.project_knowledge(world_id)
             return cls(
                 vault=world_archive,
                 state_dir=world_dir / "Runtime",
                 home=home,
                 world_id=world_id,
-                animus=home / "Animus" / "animus.db",
-                raw_chats=home / "Animus" / "raw-chats" / world_id,
-                atlas_graph=world_dir / "Atlas" / "graph.json",
+                animus=folders.memories / "animus.db",
+                raw_chats=folders.chat_history / world_id,
+                atlas_graph=folders.code_map(world_dir) / "graph.json",
             )
         return cls(Path(os.getenv("HOLOCORE_VAULT", root / "Archive")), Path(os.getenv("HOLOCORE_STATE", root / ".holocore")), None)
 

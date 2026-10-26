@@ -42,10 +42,10 @@ def test_sync_all_reconciles_two_registered_worlds(
     assert len({config["archive"] for config in configs}) == 2
     for config in configs:
         storage = isolated_holocore_home / "Projects" / config["world_id"]
-        assert Path(config["archive"]) == isolated_holocore_home / "Archive" / "Worlds" / config["world_id"]
+        assert Path(config["archive"]) == isolated_holocore_home / "Knowledge" / "Projects" / config["world_id"]
         assert "shared_archive" not in config
-        assert (storage / "Atlas" / "graph.json").is_file()
-        assert (storage / "Atlas" / "atlas.html").is_file()
+        assert (storage / "CodeMap" / "graph.json").is_file()
+        assert (storage / "CodeMap" / "atlas.html").is_file()
         assert not Path(config["root"]).joinpath("holocore-out").exists()
 
 

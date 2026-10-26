@@ -8,19 +8,21 @@ import tomllib
 
 from .config import Config
 from .atlas import ATLAS_OUT_DIR
+from .folder_layout import HomeLayout
 
 
 def world_paths(root: Path, config: Config | None = None) -> dict[str, str]:
     root = root.resolve()
     config = config or Config.load(root=root)
+    knowledge = HomeLayout(config.home).knowledge if config.home else config.vault
     return {
         "world": str(root),
         "world_id": config.world_id or root.name,
         "home": str(config.home or root),
-        "shared_brain": str(config.home if config.home else config.vault),
+        "shared_brain": str(knowledge),
         "worlds_registry": str((config.home / "worlds.json") if config.home else root / ".holocore" / "worlds.json"),
-        "start_here": str((config.home / "Archive" / "system" / "index.md") if config.home else root / "HOLOCORE-START-HERE.md"),
-        "archive": str(config.home if config.home else config.vault),
+        "start_here": str((knowledge / "system" / "index.md") if config.home else root / "HOLOCORE-START-HERE.md"),
+        "archive": str(knowledge),
         "world_archive": str(config.vault),
         "ingest_inbox": str((config.state_dir.parent / "Inbox") if config.home else root / "Archive" / "Inbox"),
         "raw_sources": str(config.state_dir.parent / "Sources"),
@@ -88,17 +90,17 @@ def format_paths(paths: dict[str, str]) -> str:
         "home": "HoloCore Home",
         "shared_brain": "Shared brain (Obsidian vault)",
         "worlds_registry": "Registered Worlds",
-        "archive": "Archive (Obsidian vault)",
-        "world_archive": "This World's Archive",
+        "archive": "Knowledge vault (Obsidian)",
+        "world_archive": "This project's knowledge",
         "ingest_inbox": "Automatic source Inbox",
         "raw_sources": "Immutable raw sources",
-        "archive_entries": "Archive Entries",
-        "archive_index": "Archive index",
-        "atlas_json": "Atlas machine graph",
-        "atlas_html": "Atlas visual graph",
-        "atlas_runtime": "Atlas runtime mirror",
-        "memory_shards": "Memory Shards database",
-        "raw_chats": "Raw chat audit",
+        "archive_entries": "Knowledge entries",
+        "archive_index": "Knowledge index",
+        "atlas_json": "Code Map graph",
+        "atlas_html": "Visual Code Map",
+        "atlas_runtime": "Code Map runtime mirror",
+        "memory_shards": "Memory database",
+        "raw_chats": "Chat history",
         "start_here": "Start-here guide",
         "claude_mcp": "Claude MCP config",
         "claude_commands": "Claude slash commands",

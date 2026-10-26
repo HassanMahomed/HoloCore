@@ -9,9 +9,9 @@ HoloCore is one Python package under `src/holocore`. Obsidian Second Brain, Grap
 Version `0.5.0` separates shared durable knowledge from rebuildable and sensitive project state:
 
 - One user-selected **HoloCore Home** is shared by all registered projects.
-- `<Home>/Archive` is one Markdown vault that may be opened directly in Obsidian.
-- `<Home>/Archive/Worlds/<world-id>` stores durable knowledge for one project.
-- `<Home>/Archive/Shared` stores durable knowledge intentionally shared across projects.
+- `<Home>/Knowledge` is one Markdown vault that may be opened directly in Obsidian.
+- `<Home>/Knowledge/Projects/<project-id>` stores durable knowledge for one project.
+- `<Home>/Knowledge/Shared` stores durable knowledge intentionally shared across projects.
 - Each project keeps Atlas, Animus, capture cursors, and raw chats under `<project>/.holocore`.
 
 The Home contains a `worlds.json` registry. A small user-level pointer remembers the selected Home. World IDs combine a readable project slug with a short hash of the normalized project path, avoiding collisions between projects with the same folder name.
@@ -90,9 +90,9 @@ The hook receives the client payload, reads only transcript bytes after the last
 
 The pipeline writes a raw audit, stores deduplicated shards in project-local Animus, and promotes useful extraction into:
 
-`<Home>/Archive/Worlds/<world-id>/wiki/memory/<date>-<digest>.md`
+`<Home>/Knowledge/Projects/<project-id>/wiki/memory/<date>-<digest>.md`
 
-Promotion occurs when extraction contains facts or decisions, or a meaningful summary. The content digest gives deterministic deduplication. Promotion defaults to the active World; explicit paths beginning with `shared/` target `<Home>/Archive/Shared`.
+Promotion occurs when extraction contains facts or decisions, or a meaningful summary. The content digest gives deterministic deduplication. Promotion defaults to the active World; explicit paths beginning with `shared/` target `<Home>/Knowledge/Shared`.
 
 Hook errors are converted to a result and do not block the AI client. After successful ingestion, the hook checks Atlas and refreshes it when necessary.
 

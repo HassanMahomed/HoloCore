@@ -20,7 +20,7 @@ from typing import Any, Mapping
 from .archive import Archive
 
 
-APP_VERSION = "0.9.0"
+APP_VERSION = "0.12.0"
 SCHEMA_VERSION = 1
 CONFIG_HOME_ENV = "HOLOCORE_CONFIG_HOME"
 POINTER_FILENAME = "home.json"
@@ -138,7 +138,21 @@ class HomeManager:
 
     @property
     def archive(self) -> Path:
-        return self.home / "Archive"
+        from .folder_layout import HomeLayout
+        return HomeLayout(self.home).knowledge
+
+    @property
+    def memories(self) -> Path:
+        from .folder_layout import HomeLayout
+        return HomeLayout(self.home).memories
+
+    def project_knowledge(self, project_id: str) -> Path:
+        from .folder_layout import HomeLayout
+        return HomeLayout(self.home).project_knowledge(project_id)
+
+    def code_map(self, storage: str | Path) -> Path:
+        from .folder_layout import HomeLayout
+        return HomeLayout(self.home).code_map(storage)
 
     @property
     def projects(self) -> Path:
@@ -177,7 +191,7 @@ class HomeManager:
         if home is not None:
             self._selected_home = _absolute(home)
         target = self.home
-        archive_path = target / "Archive"
+        archive_path = self.archive
         worlds_path = target / REGISTRY_FILENAME
         created: list[str] = []
 
@@ -186,6 +200,12 @@ class HomeManager:
             created.append(str(target))
         elif not target.is_dir():
             raise NotADirectoryError(str(target))
+
+        from .folder_layout import HomeLayout, LAYOUT_VERSION
+        layout_marker = target / "layout.json"
+        if not layout_marker.exists() and HomeLayout(target).version >= LAYOUT_VERSION:
+            _atomic_write(layout_marker, _json_bytes({"layout_version": LAYOUT_VERSION, "created_by": self.app_version}))
+            created.append(str(layout_marker))
 
         archive_existed = archive_path.exists()
         archive_report = Archive(archive_path).init_vault(container=True)
@@ -217,18 +237,18 @@ provenance:
 ---
 
 ## For future Claude
-This Home contains one Archive and every centrally stored World.
+This Home contains one Knowledge vault and every centrally stored project.
 
-# HoloCore Archive
+# HoloCore Knowledge
 
-- `Worlds/<project-name>/wiki/` contains durable knowledge scoped to one project.
+- `Projects/<project-name>/wiki/` contains durable knowledge scoped to one project.
 - Cross-project knowledge uses links and tags across World notes.
-- `../Projects/<project-name>/Atlas/` contains that World's structural and semantic graph.
-- `../Animus/` contains one shared, World-scoped SQLite memory store and raw-chat audit.
+- `../Projects/<project-name>/CodeMap/` contains that project's structural and semantic graph.
+- `../Memories/` contains one shared, project-scoped SQLite memory store and chat history.
 - `../Projects/<project-name>/Inbox/` and `Sources/` hold ingestion material outside Obsidian.
 - `system/index.md` is the knowledge entry point.
 
-Open the `Archive` folder as one Obsidian vault. Obsidian is optional.
+Open the `Knowledge` folder as one Obsidian vault. Obsidian is optional.
 """
             if _atomic_write(guide, home_guide.encode("utf-8")):
                 created.append(str(guide))
@@ -236,14 +256,18 @@ Open the `Archive` folder as one Obsidian vault. Obsidian is optional.
         for folder in (
             target / "Projects",
             target / "Connections",
-            target / "Animus" / "raw-chats",
-            archive_path / "Worlds",
+            self.memories / ("ChatHistory" if self.memories.name == "Memories" else "raw-chats"),
+            archive_path / ("Projects" if archive_path.name == "Knowledge" else "Worlds"),
         ):
             if not folder.exists():
                 folder.mkdir(parents=True)
                 created.append(str(folder))
             elif not folder.is_dir():
                 raise NotADirectoryError(str(folder))
+
+        if HomeLayout(target).version >= LAYOUT_VERSION:
+            from .folder_layout import ensure_legacy_aliases
+            ensure_legacy_aliases(target)
 
         registry_created = False
         if worlds_path.exists():
@@ -286,7 +310,9 @@ Open the `Archive` folder as one Obsidian vault. Obsidian is optional.
         ):
             return False
         worlds = self.list_worlds()["worlds"] if self.worlds_path.exists() else []
-        links = [f"- [[Worlds/{item['id']}/system/index|{item['name']}]]" for item in worlds]
+        from .folder_layout import HomeLayout
+        project_folder = "Projects" if HomeLayout(self.home).version >= 2 else "Worlds"
+        links = [f"- [[{project_folder}/{item['id']}/system/index|{item['name']}]]" for item in worlds]
         body = [
             marker,
             "# HoloCore Home",
@@ -432,7 +458,7 @@ Open the `Archive` folder as one Obsidian vault. Obsidian is optional.
             _atomic_write(self.worlds_path, _json_bytes(registry))
 
         world_storage = Path(str(record["storage"]))
-        world_archive = self.archive / "Worlds" / str(record["id"])
+        world_archive = self.project_knowledge(str(record["id"]))
         runtime_archive = world_storage / "Archive"
         if runtime_archive.is_dir() and runtime_archive.resolve() != world_archive.resolve():
             if world_archive.exists():
@@ -443,12 +469,15 @@ Open the `Archive` folder as one Obsidian vault. Obsidian is optional.
             shutil.move(str(runtime_archive), str(world_archive))
         Archive(world_archive).init_vault(scoped=True)
         for folder in (
-            world_storage / "Atlas",
+            self.code_map(world_storage),
             world_storage / "Runtime",
             world_storage / "Inbox",
-            self.home / "Animus" / "raw-chats" / str(record["id"]),
+            self.memories / ("ChatHistory" if self.memories.name == "Memories" else "raw-chats") / str(record["id"]),
         ):
             folder.mkdir(parents=True, exist_ok=True)
+        if self.code_map(world_storage).name == "CodeMap":
+            from .folder_layout import ensure_legacy_aliases
+            ensure_legacy_aliases(self.home, project_storage=world_storage)
         world_config = {
             "version": 5,
             "world": display_name,
@@ -457,9 +486,9 @@ Open the `Archive` folder as one Obsidian vault. Obsidian is optional.
             "home": str(self.home),
             "archive": str(world_archive),
             "state_dir": str(world_storage / "Runtime"),
-            "animus": str(self.home / "Animus" / "animus.db"),
-            "raw_chats": str(self.home / "Animus" / "raw-chats" / str(record["id"])),
-            "atlas_graph": str(world_storage / "Atlas" / "graph.json"),
+            "animus": str(self.memories / "animus.db"),
+            "raw_chats": str(self.memories / ("ChatHistory" if self.memories.name == "Memories" else "raw-chats") / str(record["id"])),
+            "atlas_graph": str(self.code_map(world_storage) / "graph.json"),
             "llm": {"provider": "local"},
         }
         _atomic_write(world_storage / "world.json", _json_bytes(world_config))
@@ -505,7 +534,7 @@ Open the `Archive` folder as one Obsidian vault. Obsidian is optional.
             (item for item in self.list_worlds()["worlds"] if str(item.get("id")) == selected_id),
             None,
         )
-        destination = self.archive / "Worlds" / selected_id / "Imported"
+        destination = self.project_knowledge(selected_id) / "Imported"
         report: dict[str, Any] = {
             "attempted": True,
             "source": str(source),
