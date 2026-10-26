@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from holocore.activity import ActivityLedger
+from holocore.capture_hook import run as capture_hook_run
 
 
 def test_activity_ledger_records_runs_actions_subagents_and_affected_items(tmp_path):
@@ -62,6 +63,90 @@ def test_session_end_completes_run(tmp_path):
     run = next(item for item in ledger.runs(project_id="project-1") if item["id"] == result["run_id"])
     assert run["status"] == "completed"
     assert run["ended_at"]
+
+
+def test_cursor_activity_normalizes_session_events_and_never_stores_prompt_or_tool_output(tmp_path):
+    ledger = ActivityLedger(tmp_path / "cursor.db")
+    result = ledger.record_hook(
+        {
+            "hook_event_name": "postToolUse",
+            "conversation_id": "cursor-conversation",
+            "generation_id": "generation-4",
+            "tool_use_id": "tool-call-9",
+            "model_id": "cursor-model",
+            "tool_name": "Write",
+            "tool_input": {"file_path": str(tmp_path / "src" / "main.py")},
+            "tool_output": "private output",
+            "prompt": "private prompt",
+        },
+        client="cursor",
+        project_id="project-1",
+    )
+
+    run = next(row for row in ledger.runs(project_id="project-1") if row["id"] == result["run_id"])
+    action = ledger.actions(result["run_id"])[0]
+    assert run["session_id"] == "cursor-conversation"
+    assert run["model"] == "cursor-model"
+    assert action["items"] == (str(tmp_path / "src" / "main.py"),)
+    serialized = json.dumps({"run": run, "action": action})
+    assert "private prompt" not in serialized
+    assert "private output" not in serialized
+
+
+def test_opencode_tool_activity_uses_event_properties_session_id(tmp_path):
+    ledger = ActivityLedger(tmp_path / "opencode.db")
+    result = ledger.record_hook(
+        {
+            "event": "tool.execute.after",
+            "properties": {"sessionID": "oc-session", "info": {"id": "tool-event-1"}},
+            "tool_name": "write",
+            "tool_input": {"filePath": str(tmp_path / "README.md")},
+        },
+        client="opencode",
+        project_id="project-1",
+    )
+    run = next(row for row in ledger.runs(project_id="project-1") if row["id"] == result["run_id"])
+    assert run["session_id"] == "oc-session"
+    assert result["items"] == [str(tmp_path / "README.md")]
+
+
+def test_new_client_capture_is_activity_only(tmp_path, isolated_holocore_home, monkeypatch):
+    from holocore.engine import HoloCoreEngine
+
+    monkeypatch.setattr("holocore.capture_hook.maybe_check", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        HoloCoreEngine,
+        "ingest_chat",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("must not ingest chat")),
+    )
+    root = tmp_path / "project"
+    root.mkdir()
+    result = capture_hook_run(
+        {
+            "cwd": str(root),
+            "hook_event_name": "postToolUse",
+            "conversation_id": "cursor-session",
+            "tool_use_id": "cursor-action-1",
+            "tool_name": "Write",
+            "tool_input": {"file_path": str(root / "src.py")},
+            "prompt": "do not capture this",
+        },
+        "cursor",
+    )
+
+    assert result["reason"] == "activity-only-client"
+    assert result["activity"]["recorded"] is True
+
+
+def test_cli_hook_entrypoint_emits_json_for_cursor(monkeypatch, capsys):
+    from holocore import cli
+
+    monkeypatch.setattr("sys.argv", ["holocore", "capture-hook", "--client", "cursor"])
+    monkeypatch.setattr("sys.stdin", __import__("io").StringIO("{}"))
+    monkeypatch.setattr("holocore.capture_hook.run", lambda payload, client: {"recorded": True})
+
+    assert cli.main() == 0
+    assert capsys.readouterr().out.strip() == "{}"
 
 
 def test_affected_lookup_is_scoped_case_insensitive_and_newest_first(tmp_path):

@@ -76,6 +76,19 @@ def test_bootstrap_creates_native_files_for_all_clients(
     )
     assert "PreToolUse" in claude_hooks["hooks"]
     assert "SubagentStart" in claude_hooks["hooks"]
+    gemini_hooks = json.loads((connections / ".gemini/settings.json").read_text(encoding="utf-8"))
+    assert "holocore.capture_hook --client gemini" in json.dumps(gemini_hooks["hooks"]["AfterTool"])
+    assert "async" not in json.dumps(gemini_hooks["hooks"]["AfterTool"])
+    cursor_hooks = json.loads((connections / ".cursor/hooks.json").read_text(encoding="utf-8"))
+    assert "holocore.capture_hook --client cursor" in json.dumps(cursor_hooks["hooks"]["postToolUse"])
+    assert "afterFileEdit" in cursor_hooks["hooks"]
+    opencode_plugin = connections / ".config/opencode/plugins/holocore-activity.js"
+    assert opencode_plugin.is_file()
+    assert '"tool.execute.after"' in opencode_plugin.read_text(encoding="utf-8")
+    status = integration_status(root)
+    assert status["cursor"]["capture"] is True
+    assert status["gemini"]["capture"] is True
+    assert status["opencode"]["capture"] is True
 
 
 def test_bootstrap_merges_without_replacing_user_instructions(tmp_path: Path) -> None:

@@ -39,6 +39,9 @@ def world_paths(root: Path, config: Config | None = None) -> dict[str, str]:
         "claude_hooks": str((config.home / "Connections" / ".claude" / "settings.json") if config.home else root / ".claude" / "settings.json"),
         "codex_mcp": str((config.home / "Connections" / ".codex" / "config.toml") if config.home else root / ".codex" / "config.toml"),
         "codex_hooks": str((config.home / "Connections" / ".codex" / "hooks.json") if config.home else root / ".codex" / "hooks.json"),
+        "cursor_hooks": str((config.home / "Connections" / ".cursor" / "hooks.json") if config.home else root / ".cursor" / "hooks.json"),
+        "gemini_hooks": str((config.home / "Connections" / ".gemini" / "settings.json") if config.home else root / ".gemini" / "settings.json"),
+        "opencode_activity": str((config.home / "Connections" / ".config" / "opencode" / "plugins" / "holocore-activity.js") if config.home else root / ".opencode" / "plugins" / "holocore-activity.js"),
         "codex_skills": str((config.home / "Connections" / ".agents" / "skills") if config.home else root / ".agents" / "skills"),
     }
 
@@ -107,6 +110,9 @@ def format_paths(paths: dict[str, str]) -> str:
         "claude_hooks": "Claude capture hook",
         "codex_mcp": "Codex MCP config",
         "codex_hooks": "Codex capture hook",
+        "cursor_hooks": "Cursor activity hooks",
+        "gemini_hooks": "Gemini activity hooks",
+        "opencode_activity": "OpenCode activity plugin",
         "codex_skills": "Codex skills",
         "runtime": "HoloCore runtime",
     }
@@ -146,6 +152,23 @@ def integration_status(root: Path) -> dict[str, dict[str, object]]:
     codex_prompt = capture_hook(codex_hooks, "UserPromptSubmit")
     codex_stop = capture_hook(codex_hooks, "Stop")
     codex_capture = codex_prompt and codex_stop
+    def configured_hook(path: Path, events: tuple[str, ...]) -> bool:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            hooks = data.get("hooks", {})
+        except (OSError, json.JSONDecodeError):
+            return False
+        return any(
+            "holocore.capture_hook" in json.dumps(hooks.get(event, []))
+            or "capture-hook --client" in json.dumps(hooks.get(event, []))
+            for event in events
+        )
+
+    cursor_hooks = Path(paths["cursor_hooks"])
+    gemini_hooks = Path(paths["gemini_hooks"])
+    cursor_capture = configured_hook(cursor_hooks, ("postToolUse", "afterFileEdit"))
+    gemini_capture = configured_hook(gemini_hooks, ("AfterTool", "AfterAgent"))
+    opencode_activity = Path(paths["opencode_activity"]).is_file()
     try:
         codex_data = tomllib.loads(codex_path.read_text(encoding="utf-8")) if codex_path.exists() else {}
         codex_ok = "holocore" in codex_data.get("mcp_servers", {})
@@ -173,4 +196,7 @@ def integration_status(root: Path) -> dict[str, dict[str, object]]:
             "user_prompt_submit": codex_prompt,
             "stop": codex_stop,
         },
+        "cursor": {"capture": cursor_capture, "capture_status": "configured" if cursor_capture else "not configured", "hooks": str(cursor_hooks)},
+        "gemini": {"capture": gemini_capture, "capture_status": "configured" if gemini_capture else "not configured", "hooks": str(gemini_hooks)},
+        "opencode": {"capture": opencode_activity, "capture_status": "configured" if opencode_activity else "not configured", "plugin": str(paths["opencode_activity"])},
     }
