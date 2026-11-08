@@ -37,6 +37,7 @@ CLIENT_LABELS = {
 }
 
 UNINSTALL_REGISTRY_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\HoloCore"
+CONTROL_CENTRE_SHORTCUT = "HoloCore Control Centre.lnk"
 
 
 def _copy_if_changed(source: Path, target: Path) -> bool:
@@ -81,6 +82,7 @@ def _configure_windows_shell(
     programs = _programs_dir()
     shortcut = programs / "HoloCore Setup.lnk"
     uninstall_shortcut = programs / "Uninstall HoloCore.lnk"
+    desktop_shortcut = programs / CONTROL_CENTRE_SHORTCUT
     quote = lambda value: "'" + str(value).replace("'", "''") + "'"
     script = (
         "$w=New-Object -ComObject WScript.Shell;"
@@ -88,6 +90,11 @@ def _configure_windows_shell(
         "$s.TargetPath=" + quote(setup_executable) + ";"
         "$s.WorkingDirectory=" + quote(install_dir) + ";"
         "$s.Description='Configure HoloCore folders, AI tools, features, and local models';$s.Save();"
+        "$c=$w.CreateShortcut(" + quote(desktop_shortcut) + ");"
+        "$c.TargetPath=" + quote(setup_executable) + ";"
+        "$c.Arguments='--desktop';"
+        "$c.WorkingDirectory=" + quote(install_dir) + ";"
+        "$c.Description='Browse HoloCore projects, knowledge, memories, and AI connections';$c.Save();"
         "$u=$w.CreateShortcut(" + quote(uninstall_shortcut) + ");"
         "$u.TargetPath=" + quote(setup_executable) + ";"
         "$u.Arguments='--uninstall';"
@@ -123,6 +130,7 @@ def _configure_windows_shell(
         "path_changed": path_changed,
         "shortcut": str(shortcut),
         "uninstall_shortcut": str(uninstall_shortcut),
+        "desktop_shortcut": str(desktop_shortcut),
         "registry_key": rf"HKCU\{UNINSTALL_REGISTRY_KEY}",
     }
 
@@ -146,7 +154,8 @@ def _remove_windows_shell_integration(install_dir: Path) -> dict[str, Any]:
             path_changed = True
 
     removed: list[str] = []
-    for shortcut in (_programs_dir() / "HoloCore Setup.lnk", _programs_dir() / "Uninstall HoloCore.lnk"):
+    for shortcut in (_programs_dir() / "HoloCore Setup.lnk", _programs_dir() / "Uninstall HoloCore.lnk",
+                     _programs_dir() / CONTROL_CENTRE_SHORTCUT):
         if shortcut.exists():
             shortcut.unlink()
             removed.append(str(shortcut))
@@ -511,7 +520,8 @@ class NativeSetupApp:
             return
         command = [sys.executable]
         if not getattr(sys, "frozen", False):
-            command.extend(["-m", "holocore.setup_app"])
+            windowed = Path(sys.executable).with_name("pythonw.exe")  # No console window from a source checkout.
+            command = [str(windowed) if windowed.is_file() else sys.executable, "-m", "holocore.setup_app"]
         command.append("--desktop")
         for flag, value in (("--home", self.home_var.get().strip()), ("--project", self.project_var.get().strip())):
             if value:

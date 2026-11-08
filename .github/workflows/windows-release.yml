@@ -87,6 +87,8 @@ jobs:
           --paths src
           --collect-submodules holocore
           --add-data "docs/assets/holocore-icon.png;holocore-assets"
+          --add-data "docs/assets/holocore-icon-48.png;holocore-assets"
+          --add-data "docs/assets/holocore-icon-96.png;holocore-assets"
           --add-data "install.ps1;holocore-assets"
           --add-binary "dist/holocore-windows-x64.exe;holocore-payload"
           src/holocore/setup_app.py
@@ -168,6 +170,7 @@ jobs:
           $programs = [Environment]::GetFolderPath('Programs')
           if (-not (Test-Path -LiteralPath (Join-Path $programs 'HoloCore Setup.lnk'))) { throw 'Setup shortcut was not created.' }
           if (-not (Test-Path -LiteralPath (Join-Path $programs 'Uninstall HoloCore.lnk'))) { throw 'Uninstall shortcut was not created.' }
+          if (-not (Test-Path -LiteralPath (Join-Path $programs 'HoloCore Control Centre.lnk'))) { throw 'Control Centre shortcut was not created.' }
           & (Join-Path $install 'holocore.exe') --root $project --json status | Out-Host
           if ($LASTEXITCODE -ne 0) { throw 'Installed CLI status failed.' }
           & .\install.ps1 -Version $releaseTag -Yes -UpgradeOnly -InstallDir $install -ReleaseDirectory .\dist -Home $lifecycleHome
@@ -179,6 +182,7 @@ jobs:
           if (Test-Path -LiteralPath $uninstallKey) { throw 'Uninstall left the Installed Apps registration behind.' }
           if (Test-Path -LiteralPath (Join-Path $programs 'HoloCore Setup.lnk')) { throw 'Uninstall left the Setup shortcut behind.' }
           if (Test-Path -LiteralPath (Join-Path $programs 'Uninstall HoloCore.lnk')) { throw 'Uninstall left its Start menu shortcut behind.' }
+          if (Test-Path -LiteralPath (Join-Path $programs 'HoloCore Control Centre.lnk')) { throw 'Uninstall left the Control Centre shortcut behind.' }
           if (-not (Test-Path -LiteralPath $lifecycleHome)) { throw 'Uninstall removed HoloCore Home.' }
       - uses: actions/upload-artifact@v4
         with:

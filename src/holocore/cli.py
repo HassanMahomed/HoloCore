@@ -389,7 +389,7 @@ def main() -> int:
         return 0
     if args.command == "desktop":
         from .desktop_app import launch_desktop_app
-        return launch_desktop_app(project=root, home=args.home)
+        return launch_desktop_app(project=root if args.root != "." else None, home=args.home)
     if args.command == "console":
         from .console import export_console, serve_console
         if args.export:
