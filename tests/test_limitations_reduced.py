@@ -1,17 +1,17 @@
 from pathlib import Path
 
-from holocore.animus import Animus
-from holocore.animus_retrieval import AnimusRetriever
+from holocore.memories import MemoryStore
+from holocore.memory_retrieval import MemoryRetriever
 from holocore.archive_promotion import promote_entry
 
 
 def test_embedding_retrieval_can_use_custom_embedder(tmp_path: Path) -> None:
-    animus = Animus(tmp_path / "animus.db")
+    animus = MemoryStore(tmp_path / "animus.db")
     animus.create_world("w")
     animus.create_sector("w", "project")
     animus.ingest("blue automobile", world="w", sector="project", source_ref="test")
     vectors = {"blue automobile": [1.0, 0.0], "vehicle": [1.0, 0.0]}
-    result = AnimusRetriever(animus, vectors.get).search("vehicle", world="w", sector="project")
+    result = MemoryRetriever(animus, vectors.get).search("vehicle", world="w", sector="project")
     assert result and result[0].method == "semantic"
 
 

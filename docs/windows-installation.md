@@ -2,21 +2,28 @@
 
 ## Fastest installation
 
-Open PowerShell and run:
+Download `holocore-setup-windows-x64.exe` from the GitHub release and double-click it. This single executable carries and installs the HoloCore engine, adds it to the user PATH, creates the Start menu shortcut, and then opens the four-step setup window.
+
+For managed or command-line deployment, open PowerShell and run:
 
 ```powershell
-irm https://raw.githubusercontent.com/HassanMahomed/HoloCore/main/install.ps1 | iex
+irm https://github.com/HassanMahomed/HoloCore/releases/latest/download/install.ps1 | iex
 ```
 
 The installer:
 
 1. Downloads the latest `holocore-windows-x64.exe` from the official GitHub release.
-2. Verifies the published SHA-256 checksum when it is available.
+2. Downloads the immutable release manifest, requires matching SHA-256 checksums, and verifies the Authenticode signer for both executables.
 3. Installs HoloCore under `%LOCALAPPDATA%\Programs\HoloCore` and adds that folder to the user PATH.
-4. Creates the selected HoloCore Home. The default is `%USERPROFILE%\HoloCore`.
-5. Detects Claude Code, Codex, Cursor, Gemini CLI, and OpenCode.
-6. Asks before adding HoloCore to each detected client and before connecting a first project.
-7. Offers optional, lightweight automatic updates.
+4. Installs and opens the native **HoloCore Setup** Windows application.
+5. Lets you choose the HoloCore Home and first project with a native folder picker.
+6. Detects Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Ollama, and installed Ollama models.
+7. Lets you select client connections, the first Code Map, a local model, and lightweight update checks.
+8. Shows the exact folders and planned changes before the final Apply action.
+
+The setup application is a self-contained desktop interface. It does not load a web page, remote scripts, fonts, or assets. HoloCore does not install a model runtime or download models.
+
+![HoloCore Setup showing native folder and feature selection](assets/holocore-native-setup.png)
 
 Open a new terminal after installation, then run:
 
@@ -24,7 +31,16 @@ Open a new terminal after installation, then run:
 holocore status
 ```
 
-The installer does not require Python. The EXE, checksum, and installer script are also attached to each tagged [GitHub release](https://github.com/HassanMahomed/HoloCore/releases).
+The installer does not require Python. The standalone setup EXE, engine EXE, both checksums, and installer script are attached to each tagged [GitHub release](https://github.com/HassanMahomed/HoloCore/releases).
+
+To install one exact release instead of the latest release:
+
+```powershell
+& .\install.ps1 -Version 1.0.0 -Yes
+```
+
+Installation stops before replacing any existing executable if the release manifest is unavailable, malformed, for another tag, or contains a checksum that does not match the downloaded artifact.
+It also stops if either executable is unsigned, has an invalid signature, or was signed by a certificate other than the one recorded in the release manifest.
 
 ## Non-interactive installation
 
@@ -32,11 +48,12 @@ Download the installer first when passing options:
 
 ```powershell
 $installer = Join-Path $env:TEMP "holocore-install.ps1"
-Invoke-WebRequest https://raw.githubusercontent.com/HassanMahomed/HoloCore/main/install.ps1 -OutFile $installer
+Invoke-WebRequest https://github.com/HassanMahomed/HoloCore/releases/latest/download/install.ps1 -OutFile $installer
 & $installer -Yes -Project "C:\Projects\MyApp" -Home "D:\HoloCore" -EnableAutoUpdate
 ```
 
 `-Yes` accepts connection prompts for every detected client. It does not silently connect clients that were not detected.
+Use `-NoUI` for the original interactive terminal prompts without opening the desktop application. Reopen the visual setup at any time from **HoloCore Setup** in the Windows Start menu. Developer installs also provide `holocore-setup`.
 
 ## Connecting AI clients
 
@@ -70,6 +87,14 @@ Every upgrade rescans supported clients and reconciles registered projects. This
 
 The installer keeps the previous executable as `holocore.exe.previous` for recovery.
 
+To exchange the current and retained previous release without touching HoloCore Home:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\HoloCore\install.ps1" -Rollback
+```
+
+Each tagged release also publishes `holocore-sbom.cdx.json` and GitHub build provenance attestations alongside the signed executables, checksums, manifest, and installer.
+
 ## Lightweight automatic updates
 
 ```powershell
@@ -91,4 +116,4 @@ Run:
 holocore uninstall
 ```
 
-HoloCore project data and HoloCore Home are intentionally preserved. Remove `%LOCALAPPDATA%\Programs\HoloCore` and its user PATH entry only if you also want to remove the standalone Windows files.
+For a native installation, `holocore uninstall` removes the installed executables, cached installer, rollback files, user PATH entry, and Start menu shortcut. HoloCore Home and every project are intentionally preserved.

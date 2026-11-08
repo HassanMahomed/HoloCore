@@ -153,7 +153,7 @@ Or open `<Home>/Knowledge` manually in Obsidian.
 Generate and open the active project's Code Map:
 
 ```powershell
-holocore atlas-view
+holocore code-map-view
 ```
 
 The knowledge vault and Code Map answer different questions: Knowledge links notes; the Code Map shows project structure. Open `<Home>/Knowledge` in Obsidian for the Markdown view, or use the portable Code Map in a browser.

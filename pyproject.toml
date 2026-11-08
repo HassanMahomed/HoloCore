@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "holocore"
-version = "0.13.0"
+version = "1.0.0"
 description = "HoloCore Context Engine: local-first project knowledge, code maps, conversation memory, and agent activity"
 requires-python = ">=3.11"
 dependencies = ["pypdf>=5.0"]
@@ -16,6 +16,9 @@ keywords = ["ai-context", "claude", "knowledge-graph", "local-first", "mcp", "se
 [project.scripts]
 holocore = "holocore.cli:main"
 holocore-mcp = "holocore.mcp_server:main"
+
+[project.gui-scripts]
+holocore-setup = "holocore.setup_app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

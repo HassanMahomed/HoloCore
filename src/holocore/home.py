@@ -18,9 +18,10 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .archive import Archive
+from . import __version__
 
 
-APP_VERSION = "0.13.0"
+APP_VERSION = __version__
 SCHEMA_VERSION = 1
 CONFIG_HOME_ENV = "HOLOCORE_CONFIG_HOME"
 POINTER_FILENAME = "home.json"
@@ -430,9 +431,9 @@ Open the `Knowledge` folder as one Obsidian vault. Obsidian is optional.
                 database = new_storage / "Animus" / "animus.db"
                 try:
                     if database.is_file() and old_id and old_id != world_id:
-                        from .animus import Animus
+                        from .memories import MemoryStore
 
-                        Animus(database).rename_world(old_id, world_id, display_name)
+                        MemoryStore(database).rename_world(old_id, world_id, display_name)
                 except Exception:
                     if moved and new_storage.exists() and not old_storage.exists():
                         shutil.move(str(new_storage), str(old_storage))
@@ -479,14 +480,14 @@ Open the `Knowledge` folder as one Obsidian vault. Obsidian is optional.
             from .folder_layout import ensure_legacy_aliases
             ensure_legacy_aliases(self.home, project_storage=world_storage)
         world_config = {
-            "version": 5,
+            "version": 6,
             "world": display_name,
             "world_id": str(record["id"]),
             "root": str(root),
             "home": str(self.home),
             "archive": str(world_archive),
             "state_dir": str(world_storage / "Runtime"),
-            "animus": str(self.memories / "animus.db"),
+            "memories": str(self.memories / "animus.db"),
             "raw_chats": str(self.memories / ("ChatHistory" if self.memories.name == "Memories" else "raw-chats") / str(record["id"])),
             "atlas_graph": str(self.code_map(world_storage) / "graph.json"),
             "llm": {"provider": "local"},

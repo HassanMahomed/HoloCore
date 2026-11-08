@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
   <title id="title">HoloCore feature parity and release workflow</title>
-  <desc id="desc">A simple workflow showing Graphify, MemPalace and Archive parity checks feeding one HoloCore release gate.</desc>
+  <desc id="desc">A release workflow showing Code Map, Memories, and Knowledge verification feeding signed artifact and lifecycle gates.</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#12243d"/></linearGradient>
     <filter id="shadow"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#020617" flood-opacity=".45"/></filter>
@@ -11,19 +11,19 @@
   <text x="70" y="112" fill="#b8c4d4" font-family="Segoe UI,Arial,sans-serif" font-size="20">Every original workflow is checked before one release is called complete.</text>
   <g filter="url(#shadow)" font-family="Segoe UI,Arial,sans-serif">
     <rect x="70" y="170" width="360" height="220" rx="22" fill="#102b45" stroke="#38bdf8" stroke-width="3"/>
-    <text x="105" y="225" fill="#38bdf8" font-size="26" font-weight="700">1 · Graphify / Atlas</text>
+    <text x="105" y="225" fill="#38bdf8" font-size="26" font-weight="700">1 · Code Map</text>
     <text x="105" y="270" fill="#f8fafc" font-size="19">Build the structural map</text>
     <text x="105" y="305" fill="#cbd5e1" font-size="17">Clusters · audit · explain</text>
     <text x="105" y="337" fill="#cbd5e1" font-size="17">Queries · exports · freshness</text>
 
     <rect x="520" y="170" width="360" height="220" rx="22" fill="#1f2549" stroke="#a78bfa" stroke-width="3"/>
-    <text x="555" y="225" fill="#c4b5fd" font-size="26" font-weight="700">2 · MemPalace / Animus</text>
+    <text x="555" y="225" fill="#c4b5fd" font-size="26" font-weight="700">2 · Memories</text>
     <text x="555" y="270" fill="#f8fafc" font-size="19">Remember project history</text>
     <text x="555" y="305" fill="#cbd5e1" font-size="17">Mine · retrieve · diary</text>
     <text x="555" y="337" fill="#cbd5e1" font-size="17">Consolidate · preserve provenance</text>
 
     <rect x="970" y="170" width="360" height="220" rx="22" fill="#123b37" stroke="#22c55e" stroke-width="3"/>
-    <text x="1005" y="225" fill="#4ade80" font-size="26" font-weight="700">3 · Archive</text>
+    <text x="1005" y="225" fill="#4ade80" font-size="26" font-weight="700">3 · Knowledge</text>
     <text x="1005" y="270" fill="#f8fafc" font-size="19">Keep verified knowledge</text>
     <text x="1005" y="305" fill="#cbd5e1" font-size="17">Promote · deduplicate · link</text>
     <text x="1005" y="337" fill="#cbd5e1" font-size="17">Obsidian-ready Markdown</text>
@@ -32,8 +32,8 @@
   <path d="M250 430v74M700 430v74M1150 430v74" stroke="#38bdf8" stroke-width="4" marker-end="url(#arrow)"/>
   <g filter="url(#shadow)" font-family="Segoe UI,Arial,sans-serif">
     <rect x="200" y="520" width="1000" height="150" rx="24" fill="#0f172a" stroke="#f59e0b" stroke-width="3"/>
-    <text x="250" y="575" fill="#fbbf24" font-size="27" font-weight="700">4 · HoloCore parity gate</text>
-    <text x="250" y="614" fill="#f8fafc" font-size="19">CLI · MCP · prompts · capture · imports · docs · tests</text>
-    <text x="250" y="646" fill="#cbd5e1" font-size="17">Only verified capabilities are marked complete; missing work stays visible.</text>
+    <text x="250" y="575" fill="#fbbf24" font-size="27" font-weight="700">4 · Signed v1 release gate</text>
+    <text x="250" y="614" fill="#f8fafc" font-size="19">Tests · UI · install · upgrade · rollback · uninstall · SBOM</text>
+    <text x="250" y="646" fill="#cbd5e1" font-size="17">Only signed, version-bound artifacts that pass the complete lifecycle are published.</text>
   </g>
 </svg>

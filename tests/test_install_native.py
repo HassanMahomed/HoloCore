@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from holocore.install import bootstrap_project
-from holocore.animus import Animus
+from holocore.memories import MemoryStore
 from holocore.config import Config
 from holocore.engine import HoloCoreEngine
 from holocore.layout import integration_status, world_paths
@@ -26,14 +26,14 @@ def test_bootstrap_creates_native_files_for_all_clients(
     config = json.loads((world_storage / "world.json").read_text(encoding="utf-8"))
     world_archive = isolated_holocore_home / "Knowledge" / "Projects" / report.world_id
     assert config == {
-        "version": 5,
+        "version": 6,
         "world": root.name,
         "world_id": report.world_id,
         "root": str(root.resolve()),
         "home": str(isolated_holocore_home),
         "archive": str(world_archive),
         "state_dir": str(world_storage / "Runtime"),
-        "animus": str(isolated_holocore_home / "Memories" / "animus.db"),
+        "memories": str(isolated_holocore_home / "Memories" / "animus.db"),
         "raw_chats": str(isolated_holocore_home / "Memories" / "ChatHistory" / report.world_id),
         "atlas_graph": str(world_storage / "CodeMap" / "graph.json"),
         "llm": {"provider": "local"},
@@ -57,12 +57,12 @@ def test_bootstrap_creates_native_files_for_all_clients(
     assert "holocore" in json.loads((client_root / ".gemini/settings.json").read_text(encoding="utf-8"))["mcpServers"]
     assert "holocore" in json.loads((client_root / ".config/opencode/opencode.json").read_text(encoding="utf-8"))["mcp"]
     policy = (connections / "policy.md").read_text(encoding="utf-8")
-    assert "Atlas first" in policy
-    assert "Archive second" in policy
-    assert "Animus third" in policy
+    assert "Code Map first" in policy
+    assert "Knowledge second" in policy
+    assert "Memories third" in policy
     assert "Never route a HoloCore search back into itself" in policy
-    assert "**Archive** = verified knowledge" in policy
-    assert "**Constellation** = group of related mapped things" in policy
+    assert "**Knowledge** = verified durable notes" in policy
+    assert "**Code Map group** = related mapped items" in policy
     assert "C:\\Users" not in policy
     assert HoloCoreEngine(root).status()["readiness"] == {"ready": True, "missing": []}
 
@@ -158,17 +158,17 @@ def test_bootstrap_copies_legacy_memory_shards_to_central_world_without_deleting
 ) -> None:
     root = tmp_path / "legacy-world"
     legacy_path = root / ".holocore" / "animus.db"
-    legacy = Animus(legacy_path)
+    legacy = MemoryStore(legacy_path)
     legacy.create_world("legacy")
     legacy.create_sector("legacy", "project")
     legacy.ingest("A durable legacy decision", world="legacy", sector="project", source_ref="test")
 
     report = bootstrap_project(root, init_git=False, platforms=[], home=isolated_holocore_home)
-    central = Animus(Config.load(root=root).animus_path)
+    central = MemoryStore(Config.load(root=root).memory_path)
 
     assert central.status()["memory_shards"] == 1
     assert legacy_path.is_file()
-    assert any("Migrated 1 legacy Memory Shards" in warning for warning in report.warnings)
+    assert any("Migrated 1 legacy Memory records" in warning for warning in report.warnings)
 
 
 def test_capture_hooks_merge_preserves_user_json_and_is_idempotent(

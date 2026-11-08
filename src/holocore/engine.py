@@ -190,15 +190,24 @@ class HoloCoreEngine:
         )
         readiness = {"ready": all(path.is_dir() for path in required), "missing": [str(path) for path in required if not path.is_dir()]}
         try:
-            animus = self.router.animus.status(self.router.world_id)
+            memories = self.router.memories.status(self.router.world_id)
         except KeyError:
-            animus = {"ready": False, "backend": "sqlite", "database": str(self.router.config.animus_path), "world": self.router.world_id, "worlds": 0, "sectors": 0, "memory_shards": 0, "source_references": 0}
-        return {"world": str(self.root), "world_id": self.router.world_id, "readiness": readiness, "paths": self.paths(), "integrations": integration_status(self.root), "archive": self.router.archive.health(), "atlas": self.router.atlas.freshness(), "animus": animus}
+            memories = {"ready": False, "backend": "sqlite", "database": str(self.router.config.memory_path), "world": self.router.world_id, "worlds": 0, "sectors": 0, "memory_shards": 0, "source_references": 0}
+        from .local_models import LocalModelManager
+        manager = LocalModelManager(self.router.config.home or self.router.config.state_dir)
+        local_model = manager.status(self.router.config.llm)
+        return {"world": str(self.root), "world_id": self.router.world_id, "readiness": readiness, "paths": self.paths(), "integrations": integration_status(self.root), "archive": self.router.archive.health(), "atlas": self.router.atlas.freshness(), "memories": memories, "animus": memories, "local_model": local_model}
     def refresh(self) -> dict:
         graph = self.router.atlas.refresh(); self._cache.clear()
         html = self._write_atlas_views()[0]
         report = self.router.atlas.write_report()
-        return {"path": str(self.router.atlas.graph_path), "html": str(html), "report": str(report), "nodes": len(graph.get("nodes", [])), "edges": len(graph.get("links", graph.get("edges", []))), "constellations": len(self.router.atlas.constellations()), "fresh": True}
+        communities = self.router.atlas.write_community_knowledge()
+        return {
+            "path": str(self.router.atlas.graph_path), "html": str(html), "report": str(report),
+            "community_knowledge": communities, "nodes": len(graph.get("nodes", [])),
+            "edges": len(graph.get("links", graph.get("edges", []))),
+            "constellations": communities["count"], "fresh": True,
+        }
     def mine(self, world: Path | None = None, sector: str = "project") -> dict:
         self.router.ensure_memory_scope()
         root = (world or self.root).resolve(); added = deduplicated = 0
@@ -206,12 +215,12 @@ class HoloCoreEngine:
             if not path.is_file() or any(part in {".git", ".holocore", ".venv", "__pycache__", "engines", "graphify-out", "holocore-out"} for part in path.parts): continue
             try: content = path.read_text(encoding="utf-8")
             except (UnicodeDecodeError, OSError): continue
-            shard = self.router.animus.ingest(content, world=self.router.world_id, sector=sector, source_ref=str(path))
+            shard = self.router.memories.ingest(content, world=self.router.world_id, sector=sector, source_ref=str(path))
             added += int(not shard.deduplicated); deduplicated += int(shard.deduplicated)
         return {"added": added, "deduplicated": deduplicated}
     def remember(self, content: str, sector: str = "general", source: str = "") -> dict:
         self.router.ensure_memory_scope()
-        shard = self.router.animus.ingest(content, world=self.router.world_id, sector=sector, source_ref=source or "manual"); self._cache.clear(); return {"id": shard.id, "created": shard.action == "inserted", "deduplicated": shard.action in {"deduplicated", "unchanged"}, "action": shard.action}
+        shard = self.router.memories.ingest(content, world=self.router.world_id, sector=sector, source_ref=source or "manual"); self._cache.clear(); return {"id": shard.id, "created": shard.action == "inserted", "deduplicated": shard.action in {"deduplicated", "unchanged"}, "action": shard.action}
     def _promote_extraction(self, extraction, source: str) -> dict:
         useful = bool(extraction.decisions or extraction.facts or len(extraction.summary.strip()) >= 40)
         if not useful:
@@ -258,7 +267,7 @@ class HoloCoreEngine:
         shard_ids = []
         source_ref = str(item.get("raw_path") or item.get("source") or "source")
         for index, chunk in self._chunks(text):
-            shard = self.router.animus.ingest(
+            shard = self.router.memories.ingest(
                 chunk,
                 world=self.router.world_id,
                 sector="sources",
@@ -369,6 +378,6 @@ class HoloCoreEngine:
     def ingest_chat(self, messages: list[dict[str, str]], *, sector: str = "conversations", source: str = "chat", custom_instructions: str = "") -> dict:
         self.router.ensure_memory_scope()
         settings = self.router.config.llm or {}
-        result = MemoryRefinementPipeline(self.router.animus, self.router.config.raw_chats_path, provider_from_config(settings)).refine(messages, world=self.router.world_id, sector=sector, source_ref=source, instructions=custom_instructions or str(settings.get("custom_instructions", "")))
+        result = MemoryRefinementPipeline(self.router.memories, self.router.config.raw_chats_path, provider_from_config(settings)).refine(messages, world=self.router.world_id, sector=sector, source_ref=source, instructions=custom_instructions or str(settings.get("custom_instructions", "")))
         promotion = self._promote_extraction(result.extraction, source)
         self._cache.clear(); return {"raw_chat": str(result.audit_path), "shard_ids": [item.id for item in result.shards], "extracted": result.extraction.__dict__, "archive_entry": promotion}

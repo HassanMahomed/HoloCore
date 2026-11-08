@@ -1,145 +1,93 @@
-# Workflow guide
+# HoloCore v1 workflows
 
-For a non-technical explanation, start with the [visual guide](visual-guide.md).
-
-## Set up the shared brain
-
-For the first World:
+## Set up the first project
 
 ```powershell
-cd <project>
-holocore setup --home <Home>
+cd C:\Projects\MyProject
+holocore setup --home "C:\Brains\HoloCore Home"
 ```
 
-For later Worlds:
+For later projects, run `holocore setup` from the project root. HoloCore reuses the selected Home.
+
+## Check readiness and locations
 
 ```powershell
-cd <another-project>
-holocore setup
+holocore status
+holocore paths
+holocore projects
+holocore connections
 ```
 
-Open `<Home>/Knowledge` as one Obsidian vault. Durable notes for each World stay under `Worlds/<world-id>`; cross-project notes go under `Shared`.
+`status` reports project readiness, Code Map freshness, Memories health, local-model mode, and AI-client connection state.
 
-After setup, restart the AI client:
-
-- Claude Code: run `/mcp` and approve or confirm HoloCore.
-- Codex: run `/hooks` and trust the HoloCore Stop hook.
-
-## Orient before broad work
-
-1. Run `holocore status`.
-2. Use a fresh Atlas to identify relevant files, symbols, and relationships.
-3. Search corresponding active-World and Shared Archive notes.
-4. Query Animus only for earlier work, errors, attempts, or conversations.
-5. Open exact source files last.
-6. Make writes explicit and scoped.
+## Search once through the bounded route
 
 ```powershell
-holocore atlas-search "Router dependency"
-holocore archive-search "routing decision"
-holocore recall "previous Router error" --sector project
+holocore search "Why did we choose SQLite?"
 ```
 
-The normal unified entry point performs the same sequence:
+The route is `check → Code Map → project Knowledge + Shared → Memories when history matters → exact sources`. Each selected source runs once.
+
+## Work with the Code Map
 
 ```powershell
-holocore search "Why did the Router change, and what does it affect?"
+holocore code-map-refresh
+holocore code-map-search "authentication"
+holocore code-map-explain "LoginService"
+holocore code-map-path "LoginService" "SessionStore"
+holocore code-map-affected "SessionStore"
+holocore code-map-groups
+holocore code-map-view
 ```
 
-It checks first, refreshes Atlas if stale, then runs Atlas → active World Archive + Shared → optional Animus once each. It never routes a HoloCore result back into HoloCore.
+The interactive view is self-contained and local. Code Map output is rebuildable evidence and is not automatically promoted into verified Knowledge.
 
-![Unified search follows one check-first route](assets/workflow-unified-search.svg)
-
-## Refresh structural knowledge
-
-Refresh one World explicitly after meaningful source changes:
+## Work with Memories
 
 ```powershell
-holocore atlas-refresh
+holocore remember "Decision: retain SQLite for local transactional storage" --sector project --source "design review"
+holocore recall "SQLite decision"
+holocore memory-timeline
+holocore memory-groups
+holocore memory-consolidate
 ```
 
-Generate and open its graph:
+Memories remain scoped to the active project and retain provenance. Forgetting a retained memory does not delete its original source file or transcript audit.
+
+## Create and search Knowledge
 
 ```powershell
-holocore atlas-view
+holocore archive-search "deployment policy"
+holocore archive-create "wiki/deployment.md" "Verified deployment procedure."
 ```
 
-Unified search and all-World synchronization also ensure Atlas is fresh.
+The `archive-*` command names remain for v1 compatibility; the user-facing store is **Knowledge**. Use a `shared/` path only for a rule intentionally shared by projects.
 
-## Capture episodic knowledge automatically
-
-Setup installs:
-
-- Claude `SessionEnd` capture;
-- Codex `Stop` capture.
-
-At the event, HoloCore reads only new transcript content, writes a raw audit, refines memory, stores project-local Animus shards, promotes useful extraction into the active World Archive, and ensures Atlas freshness. The hook is non-blocking and commits its cursor only after successful ingestion.
-
-![Automatic capture refines local memory and promotes useful knowledge](assets/workflow-memory-refinement.svg)
-
-## Capture or remember manually
-
-Use `remember` for one explicit event:
+## Review activity and hand work to another agent
 
 ```powershell
-holocore remember "Decision: use one shared Archive vault" --sector project --source "design review"
+holocore activity runs
+holocore activity affected "src/app.py"
+holocore handoffs create <run-id> --title "Continue authentication work"
+holocore handoffs list --status open
 ```
 
-Use `ingest-chat` for an exported message list:
+Activity stores normalized run/action/status/tool metadata and affected paths, not prompts or full tool payloads.
+
+## Reconcile every project after an upgrade
 
 ```powershell
-holocore ingest-chat <chat-export.json>
+holocore sync-all --regenerate
 ```
 
-Use `mine` only when whole-file capture of a narrow, understood directory is intended.
+This refreshes registered projects, upgrades project configuration, generates current `memory-*` and `code-map-*` interfaces, and removes obsolete HoloCore-generated legacy interfaces.
 
-## Curate durable knowledge
-
-Create an active-World note:
-
-```powershell
-holocore archive-create "wiki/deployment.md" "Verified deployment process."
-```
-
-Create a Shared note explicitly:
-
-```powershell
-holocore archive-create "shared/wiki/naming.md" "Naming rule shared across Worlds."
-```
-
-Automatic memory promotion writes only to the active World's `wiki/memory`. It does not publish to Shared. Update an existing durable note before creating a duplicate whenever the knowledge belongs to the same concept.
-
-## Reconcile all Worlds
-
-After a client change or generated-file drift:
-
-```powershell
-holocore sync-all
-```
-
-HoloCore walks `<Home>/worlds.json`, reruns non-destructive bootstrap, and ensures Atlas freshness for each available project. Missing projects are reported and do not stop the rest.
-
-## Update HoloCore and all Worlds
+## Upgrade, roll back, or uninstall
 
 ```powershell
 holocore update
+& "$env:LOCALAPPDATA\Programs\HoloCore\install.ps1" -Rollback
+holocore uninstall
 ```
 
-This reinstalls HoloCore from Git through `uv`, then runs the same all-World reconciliation. Use `sync-all` when you want reconciliation without reinstalling.
-
-## Change Home
-
-```powershell
-holocore home <new-Home>
-```
-
-This selects and initializes another Home; it does not migrate the old one. Copy and verify data separately, then rerun setup in the Worlds that should use the new Home.
-
-## Graph-view workflow
-
-Archive and Atlas are different:
-
-- Open `<Home>/Knowledge` in Obsidian to explore durable knowledge links.
-- Run `holocore atlas-view` in a World to explore project structure.
-
-Atlas HTML is self-contained and local. The MCP HTML tool refreshes the focused, Git-ignore-aware graph and returns `<project>/graphify-out/atlas.html` without forcing the AI client to open a browser. Search and filters reduce dense graphs; labels are collision-checked and expand on hover or selection.
+Rollback and uninstall preserve HoloCore Home and project data. The Windows installer verifies checksums and Authenticode signatures before replacing executables.

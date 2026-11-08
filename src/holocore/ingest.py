@@ -1,7 +1,7 @@
 """Safe, local-first acquisition of raw files and URLs.
 
 This module deliberately stops at acquisition and text extraction.  It does not
-write to HoloCore's Archive, Atlas, or Animus.
+write to HoloCore's Knowledge, Code Map, or Memories.
 """
 
 from __future__ import annotations

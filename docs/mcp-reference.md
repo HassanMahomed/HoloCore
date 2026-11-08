@@ -14,26 +14,32 @@ Setup writes the exact Python executable, `-m holocore.mcp_server`, and HoloCore
 | Tool | Required inputs | Effect |
 |---|---|---|
 | `holocore_search` | `query`; optional `world` | Read plus generated-state refresh; check-first Atlas → active World Archive + Shared → optional Animus |
+| `holocore_research` | `question`; optional `sector` | Read; builds a bounded evidence brief from Code Map, Knowledge, and scoped Memories |
+| `holocore_architecture` | `question`; optional `sector` | Read; builds a structural decision brief with related items and prior context |
 | `holocore_status` | None | Read; Home/World paths, readiness, Atlas freshness, Animus, and client/capture status |
+| `holocore_models_discover` | optional `base_url` | Read; probes a supported loopback runtime and lists installed models |
+| `holocore_models_status` | None | Read; reports deterministic, configured-local, unavailable, or compatible provider mode |
+| `holocore_models_configure` | `provider`, `model`; optional `base_url` | Write; validates and atomically stores one Home-level local-model selection |
+| `holocore_models_clear` | None | Write; removes only the Home-level local-model selection |
 | `holocore_archive_search` | `query` | Read; searches the active World and Shared |
 | `holocore_archive_read` | `path` | Read; active World by default, `shared/` prefix for Shared |
 | `holocore_archive_create` | `path`, `title`, `content` | Write; creates a validated AI-first World or Shared note |
-| `holocore_atlas_refresh` | None | Write; refreshes project-local Atlas JSON |
-| `holocore_atlas_search` | `query` | Read; searches project-local structural Signals |
-| `holocore_atlas_explain` | `query` | Read; explains a Signal, evidence, and relationships |
-| `holocore_atlas_path` | `source`, `target`; optional `max_depth` | Read; finds a shortest relationship path |
-| `holocore_atlas_affected` | `query`; optional `depth` | Read; finds affected Signals |
-| `holocore_atlas_neighborhood` | `query`; optional `depth` | Read; inspects a bounded local neighborhood |
-| `holocore_atlas_audit` | None | Read; reports unresolved, duplicate, orphan, confidence, and coverage issues |
-| `holocore_atlas_constellations` | optional `min_size` | Read; lists deterministic Atlas communities |
-| `holocore_atlas_html` | None | Write; generates project-local self-contained HTML and returns its path |
-| `holocore_atlas_export` | `output`; optional `formats` | Write; exports Atlas JSON, HTML, Markdown, and a manifest |
-| `holocore_animus_mine` | `mode`; optional `path`, `sector` | Write; mines one explicitly scoped World using files, conversations, or Git |
-| `holocore_animus_checkpoint` | `mode`, `source`; optional `sector` | Read; reads the last mining checkpoint |
-| `holocore_animus_diary` | `content`; optional `title`, `sector` | Write; records one episodic diary entry |
-| `holocore_animus_timeline` | optional `sector`, `limit` | Read; returns the scoped diary timeline |
-| `holocore_animus_consolidate` | optional `sector` | Write; consolidates duplicate episodic entries |
-| `holocore_animus_export` | optional `sector`, `limit` | Read; exports scoped Animus records |
+| `holocore_code_map_refresh` | None | Write; refreshes the project Code Map |
+| `holocore_code_map_search` | `query` | Read; searches project structure |
+| `holocore_code_map_explain` | `query` | Read; explains a mapped item, evidence, and relationships |
+| `holocore_code_map_path` | `source`, `target`; optional `max_depth` | Read; finds a shortest relationship path |
+| `holocore_code_map_affected` | `query`; optional `depth` | Read; finds affected mapped items |
+| `holocore_code_map_neighborhood` | `query`; optional `depth` | Read; inspects a bounded local neighborhood |
+| `holocore_code_map_audit` | None | Read; reports unresolved, duplicate, orphan, confidence, and coverage issues |
+| `holocore_code_map_groups` | optional `min_size` | Read; lists related Code Map groups |
+| `holocore_code_map_html` | None | Write; generates project-local self-contained HTML and returns its path |
+| `holocore_code_map_export` | `output`; optional `formats` | Write; exports Code Map JSON, HTML, Markdown, and a manifest |
+| `holocore_memory_collect` | `mode`; optional `path`, `sector` | Write; collects one explicitly scoped project using files, conversations, or Git |
+| `holocore_memory_checkpoint` | `mode`, `source`; optional `sector` | Read; reads the last collection checkpoint |
+| `holocore_memory_event` | `content`; optional `title`, `sector` | Write; records one episodic memory event |
+| `holocore_memory_timeline` | optional `sector`, `limit` | Read; returns the scoped memory timeline |
+| `holocore_memory_consolidate` | optional `sector` | Write; consolidates duplicate episodic memories |
+| `holocore_memory_export` | optional `sector`, `limit` | Read; exports scoped memories |
 | `holocore_remember` | `content`; optional `sector`, `source` | Write; stores or deduplicates one project-local Memory Shard |
 | `holocore_recall` | `query`; optional `sector` | Read; recalls project-local episodic memory |
 | `holocore_ingest_chat` | `messages`; optional `sector`, `instructions` | Write; audits raw chat, stores shards, and promotes useful extraction |
@@ -73,6 +79,6 @@ The files are installed by `setup` or `connect`; users still approve the MCP ser
 - Transport: local standard input/output
 - Result shape: JSON encoded in one MCP text-content item
 - Error shape: JSON-RPC code `-32000` with the exception message
-- Server version: `0.10.0`
+- Server version: `1.0.0`
 
 The server has no network authentication layer because it is launched as a local child process. The AI client, project configuration, operating-system permissions, and explicit client approval are the trust boundary.

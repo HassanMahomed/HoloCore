@@ -112,7 +112,7 @@ Get-Content "<Home>\Projects\<world>\Runtime\capture-diagnostics.jsonl" -Tail 5
 ```
 
 Look for `captured: true` and `committed: true`, followed by a new raw audit
-under `<Home>\Animus\raw-chats\<world>`. `holocore animus-checkpoint` may be
+under `<Home>\Animus\raw-chats\<world>`. `holocore memory-checkpoint` may be
 `null` on installations that use the runtime diagnostic record as the cursor;
 that alone does not prove capture failed.
 
@@ -127,12 +127,26 @@ Automatic capture needs a supported hook payload and a readable transcript. Chec
 
 Capture reads only new transcript bytes. If ingestion fails, the cursor is not advanced, so a later hook can retry.
 
+## A configured local model is unavailable
+
+Inspect the runtime and active selection:
+
+```powershell
+holocore models discover
+holocore models status
+holocore status
+```
+
+If Ollama is stopped or the selected model was removed, status reports `configured-unavailable`. Memory and knowledge extraction still complete through deterministic fallback. Start the existing runtime, select another installed model with `holocore models configure`, or return to deterministic mode with `holocore models clear`.
+
+HoloCore does not install Ollama, start its service, or download models. Non-loopback and credential-bearing discovery URLs are rejected.
+
 ## `status` reports Atlas missing or stale
 
 For an explicit refresh:
 
 ```powershell
-holocore atlas-refresh
+holocore code-map-refresh
 ```
 
 Normal `holocore search` checks and refreshes Atlas automatically before routing. `holocore sync-all` does the same for every registered World.

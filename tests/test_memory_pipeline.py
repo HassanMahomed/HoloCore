@@ -1,7 +1,7 @@
 import json
 
-from holocore.animus import Animus
-from holocore.llm import LocalMemoryProvider
+from holocore.memories import MemoryStore
+from holocore.llm import FallbackMemoryProvider, LocalMemoryProvider
 from holocore.memory_pipeline import MemoryRefinementPipeline
 
 
@@ -17,7 +17,7 @@ class FakeProvider:
 
 
 def pipeline(tmp_path, provider):
-    animus = Animus(tmp_path / "state")
+    animus = MemoryStore(tmp_path / "state")
     animus.create_world("demo")
     animus.create_sector("demo", "sessions")
     return animus, MemoryRefinementPipeline(animus, tmp_path / "raw-chat", provider)
@@ -42,7 +42,7 @@ def test_refines_in_one_call_audits_raw_chat_and_distills_shards(tmp_path):
     assert "Transcript:" in timeline[0].content
 
 
-def test_existing_animus_deduplicates_distilled_content(tmp_path):
+def test_existing_memories_deduplicate_distilled_content(tmp_path):
     provider = FakeProvider()
     animus, memory = pipeline(tmp_path, provider)
     first = memory.refine("one", world="demo", sector="sessions", source_ref="chat://1")
@@ -60,3 +60,42 @@ def test_local_provider_is_deterministic_and_keyless():
     assert result["decisions"] == ["We decided to use SQLite."]
     assert result["preferences"] == ["I prefer local tools."]
     assert result["entities"] == ["SQLite"]
+
+
+def test_configured_provider_failure_falls_back_and_records_sanitized_provenance(tmp_path):
+    class BrokenProvider:
+        name = "configured-local"
+
+        def extract(self, messages, *, instructions=""):
+            raise TimeoutError("secret-provider-detail")
+
+    provider = FallbackMemoryProvider(BrokenProvider(), LocalMemoryProvider())
+    animus, memory = pipeline(tmp_path, provider)
+
+    result = memory.refine(
+        [{"role": "user", "content": "We decided to keep deterministic fallback."}],
+        world="demo",
+        sector="sessions",
+        source_ref="chat://fallback",
+    )
+
+    assert result.provider == "deterministic"
+    assert result.fallback_reason == "configured provider unavailable or invalid"
+    assert result.extraction.decisions == ("We decided to keep deterministic fallback.",)
+    assert all(item.metadata["provider"] == "deterministic" for item in result.shards)
+    assert "secret-provider-detail" not in json.dumps([item.metadata for item in result.shards])
+    assert result.audit_path.exists()
+
+
+def test_configured_provider_success_records_provider_without_fallback(tmp_path):
+    class HealthyProvider(FakeProvider):
+        name = "ollama"
+
+    provider = FallbackMemoryProvider(HealthyProvider(), LocalMemoryProvider())
+    _animus, memory = pipeline(tmp_path, provider)
+
+    result = memory.refine("Use SQLite.", world="demo", sector="sessions", source_ref="chat://healthy")
+
+    assert result.provider == "ollama"
+    assert result.fallback_reason is None
+    assert all(item.metadata["provider"] == "ollama" for item in result.shards)

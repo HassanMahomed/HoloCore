@@ -24,6 +24,8 @@ def _text(messages: Sequence[Mapping[str, str]]) -> str:
 class LocalMemoryProvider:
     """Keyless, deterministic extraction used when no remote provider is configured."""
 
+    name = "deterministic"
+
     def extract(self, messages: Sequence[Mapping[str, str]], *, instructions: str = "") -> Mapping[str, Any]:
         del instructions
         text = _text(messages)
@@ -72,6 +74,7 @@ class OpenAICompatibleProvider:
     api_key_prefix: str = "Bearer "
     headers: Mapping[str, str] = field(default_factory=dict)
     timeout: float = 30.0
+    name: str = "openai-compatible"
 
     def extract(self, messages: Sequence[Mapping[str, str]], *, instructions: str = "") -> Mapping[str, Any]:
         schema = (
@@ -107,21 +110,52 @@ class OpenAICompatibleProvider:
         return result
 
 
+class FallbackMemoryProvider:
+    """Attempt one configured provider call, then preserve the deterministic baseline."""
+
+    def __init__(self, primary: MemoryProvider, fallback: MemoryProvider | None = None):
+        self.primary = primary
+        self.fallback = fallback or LocalMemoryProvider()
+        self.last_used = str(getattr(primary, "name", "configured"))
+        self.last_error: str | None = None
+
+    @staticmethod
+    def _valid(value: object) -> bool:
+        if not isinstance(value, Mapping) or not isinstance(value.get("summary", ""), str):
+            return False
+        return all(isinstance(value.get(key, []), (list, tuple)) for key in ("facts", "decisions", "preferences", "entities"))
+
+    def extract(self, messages: Sequence[Mapping[str, str]], *, instructions: str = "") -> Mapping[str, Any]:
+        try:
+            value = self.primary.extract(messages, instructions=instructions)
+            if not self._valid(value):
+                raise ValueError("configured provider returned invalid structured output")
+            self.last_used = str(getattr(self.primary, "name", "configured"))
+            self.last_error = None
+            return value
+        except Exception:
+            self.last_used = str(getattr(self.fallback, "name", "deterministic"))
+            self.last_error = "configured provider unavailable or invalid"
+            return self.fallback.extract(messages, instructions=instructions)
+
+
 def provider_from_config(config: Mapping[str, Any] | None = None) -> MemoryProvider:
     """Build a remote provider when base URL and model are set, otherwise local."""
 
     values = dict(config or {})
-    base_url = values.get("base_url") or os.getenv("HOLOCORE_LLM_BASE_URL")
-    model = values.get("model") or os.getenv("HOLOCORE_LLM_MODEL")
+    base_url = os.getenv("HOLOCORE_LLM_BASE_URL") or values.get("base_url")
+    model = os.getenv("HOLOCORE_LLM_MODEL") or values.get("model")
     if not base_url or not model:
         return LocalMemoryProvider()
-    return OpenAICompatibleProvider(
+    primary = OpenAICompatibleProvider(
         base_url=str(base_url), model=str(model),
         api_key_env=str(values.get("api_key_env", "HOLOCORE_LLM_API_KEY")),
         api_key_header=str(values.get("api_key_header", "Authorization")),
         api_key_prefix=str(values.get("api_key_prefix", "Bearer ")),
         headers=dict(values.get("headers", {})), timeout=float(values.get("timeout", 30)),
+        name=str(values.get("provider") or "openai-compatible"),
     )
+    return FallbackMemoryProvider(primary)
 
 
-__all__ = ["LocalMemoryProvider", "MemoryProvider", "OpenAICompatibleProvider", "provider_from_config"]
+__all__ = ["FallbackMemoryProvider", "LocalMemoryProvider", "MemoryProvider", "OpenAICompatibleProvider", "provider_from_config"]

@@ -141,7 +141,7 @@ def migrate_home(home: str | Path, *, apply: bool = False) -> dict[str, object]:
         with closing(sqlite3.connect(db)) as connection:
             check = connection.execute("PRAGMA integrity_check").fetchone()[0]
             if check != "ok":
-                raise LayoutMigrationError(f"Animus database integrity check failed: {check}")
+                raise LayoutMigrationError(f"legacy Memories database integrity check failed: {check}")
     journal = root / "layout-migration.json"
     if journal.exists():
         try:
@@ -170,7 +170,7 @@ def migrate_home(home: str | Path, *, apply: bool = False) -> dict[str, object]:
         if db.is_file():
             with closing(sqlite3.connect(db)) as connection:
                 if connection.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                    raise LayoutMigrationError("Animus database failed post-migration integrity check")
+                    raise LayoutMigrationError("legacy Memories database failed post-migration integrity check")
         journal.write_text(json.dumps({"from": 1, "to": 2, "status": "complete",
                                       "renames": [{"from": str(old), "to": str(new)} for new, old in actions],
                                       "aliases": [{"path": str(old), "target": str(new)} for old, new in aliases]}, indent=2), encoding="utf-8")

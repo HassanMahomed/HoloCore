@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
-  <title id="title">HoloCore installation, shared Home selection, World setup, and client approval</title>
-  <desc id="desc">Install HoloCore, choose one shared Home, register the current project as a World, create shared Archive and local Atlas and memory state, install Claude and Codex hooks, then approve them in each client.</desc>
+  <title id="title">HoloCore signed installation, Home selection, project setup, and AI-client approval</title>
+  <desc id="desc">Verify and install HoloCore, choose one private Home, register a project, create Knowledge, Code Map and Memories state, connect selected AI clients, then approve local access.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#12342f"/></linearGradient>
     <filter id="s"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".28"/></filter>
@@ -8,14 +8,14 @@
     <style>.f{font-family:Inter,Segoe UI,Arial,sans-serif}.t{fill:#f8fafc;font-size:31px;font-weight:700}.h{fill:#f8fafc;font-size:18px;font-weight:700}.p{fill:#d1e4e0;font-size:14px}.n{fill:#9dbbb6;font-size:12px}.l{stroke:#5eead4;stroke-width:3;fill:none;marker-end:url(#a)}</style>
   </defs>
   <rect width="1200" height="675" fill="url(#bg)"/>
-  <text x="60" y="58" class="f t">Install once, choose one Home, connect every World</text>
-  <text x="60" y="87" class="f p">Setup separates the shared Archive from project-local Atlas, memory, chats, and client hooks.</text>
+  <text x="60" y="58" class="f t">Install once, choose one Home, connect every project</text>
+  <text x="60" y="87" class="f p">Signed setup keeps Knowledge, Code Maps, Memories, chats, and AI connections local.</text>
 
   <g filter="url(#s)">
     <rect x="45" y="130" width="205" height="125" rx="16" fill="#173456" stroke="#38bdf8"/>
     <text x="147" y="170" text-anchor="middle" class="f h">1. Install</text>
-    <text x="147" y="201" text-anchor="middle" class="f p">uv tool install</text>
-    <text x="147" y="228" text-anchor="middle" class="f n">holocore + local MCP</text>
+    <text x="147" y="201" text-anchor="middle" class="f p">signed Windows setup</text>
+    <text x="147" y="228" text-anchor="middle" class="f n">checksum + signer verified</text>
   </g>
   <path d="M250 192H285" class="l"/>
   <g filter="url(#s)">
@@ -23,13 +23,13 @@
     <text x="415" y="158" text-anchor="middle" class="f h">2. Choose shared Home</text>
     <text x="415" y="189" text-anchor="middle" class="f p">holocore setup --home &lt;Home&gt;</text>
     <text x="415" y="218" text-anchor="middle" class="f n">one saved choice for all projects</text>
-    <text x="415" y="241" text-anchor="middle" class="f n">Archive = one Obsidian vault</text>
+    <text x="415" y="241" text-anchor="middle" class="f n">Knowledge = one Obsidian vault</text>
   </g>
   <path d="M535 192H570" class="l"/>
   <g filter="url(#s)">
     <rect x="580" y="120" width="260" height="145" rx="16" fill="#193a37" stroke="#2dd4bf"/>
-    <text x="710" y="158" text-anchor="middle" class="f h">3. Register this World</text>
-    <text x="710" y="189" text-anchor="middle" class="f p">Worlds/&lt;world-id&gt;</text>
+    <text x="710" y="158" text-anchor="middle" class="f h">3. Register this project</text>
+    <text x="710" y="189" text-anchor="middle" class="f p">Projects/&lt;project-id&gt;</text>
     <text x="710" y="218" text-anchor="middle" class="f n">durable project notes</text>
     <text x="710" y="241" text-anchor="middle" class="f n">Shared remains explicit</text>
   </g>
@@ -37,10 +37,10 @@
   <g filter="url(#s)">
     <rect x="885" y="110" width="270" height="165" rx="16" fill="#25325f" stroke="#818cf8"/>
     <text x="1020" y="148" text-anchor="middle" class="f h">4. Build local state</text>
-    <text x="910" y="181" class="f p">• graphify-out/graph.*</text>
-    <text x="910" y="208" class="f p">• .holocore Animus + chats</text>
+    <text x="910" y="181" class="f p">• CodeMap/graph.json</text>
+    <text x="910" y="208" class="f p">• Memories + chat history</text>
     <text x="910" y="235" class="f p">• commands + MCP + hooks</text>
-    <text x="1020" y="259" text-anchor="middle" class="f n">Atlas mirror stays internal</text>
+    <text x="1020" y="259" text-anchor="middle" class="f n">legacy paths remain compatible</text>
   </g>
 
   <path d="M1020 275V330H305V365" class="l"/>
@@ -66,13 +66,13 @@
     <text x="1045" y="414" text-anchor="middle" class="f h">Other clients</text>
     <text x="1045" y="444" text-anchor="middle" class="f p">native commands</text>
     <text x="1045" y="473" text-anchor="middle" class="f p">project MCP</text>
-    <text x="1045" y="496" text-anchor="middle" class="f n">capture not yet automatic</text>
+    <text x="1045" y="496" text-anchor="middle" class="f n">supported activity capture</text>
   </g>
 
   <path d="M305 515V555H600" class="l"/><path d="M720 515V555H600" class="l"/><path d="M1045 515V555H600" class="l"/>
   <g filter="url(#s)">
     <rect x="350" y="565" width="500" height="75" rx="16" fill="#113b39" stroke="#2dd4bf"/>
     <text x="600" y="596" text-anchor="middle" class="f h">5. One focused HoloCore experience</text>
-    <text x="600" y="621" text-anchor="middle" class="f n">active World + Shared Archive • local Atlas and memory • explicit client trust</text>
+    <text x="600" y="621" text-anchor="middle" class="f n">project Knowledge + Shared • Code Map + Memories • explicit client trust</text>
   </g>
 </svg>

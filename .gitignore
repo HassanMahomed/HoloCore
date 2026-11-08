@@ -8,6 +8,7 @@ __pycache__/
 .ruff_cache/
 build/
 dist/
+*.spec
 *.egg-info/
 
 # HoloCore runtime state and user knowledge

@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="520" viewBox="0 0 1000 520">
 <rect width="1000" height="520" fill="#0b1020"/><style>text{font:16px system-ui;fill:#dce7ff}.title{font-size:24px;font-weight:700;fill:#8ee7ff}.box{fill:#121a31;stroke:#35527f;stroke-width:2}.accent{fill:#1b2b4d;stroke:#2389a8;stroke-width:2}.small{font-size:13px;fill:#91a4c7}</style>
-<text x="40" y="45" class="title">HoloCore Home · one shared brain</text>
+<text x="40" y="45" class="title">HoloCore Home · one private context engine</text>
 <rect x="40" y="70" width="920" height="410" rx="14" class="box"/>
-<rect x="70" y="105" width="260" height="120" rx="10" class="accent"/><text x="90" y="140">Archive</text><text x="90" y="170">Verified Markdown wiki</text><text x="90" y="195" class="small">Obsidian-ready · human-readable</text>
-<rect x="370" y="105" width="260" height="120" rx="10" class="accent"/><text x="390" y="140">Animus</text><text x="390" y="170">SQLite chats + shards</text><text x="390" y="195" class="small">Episodic history · temporal Signals</text>
+<rect x="70" y="105" width="260" height="120" rx="10" class="accent"/><text x="90" y="140">Knowledge</text><text x="90" y="170">Verified Markdown notes</text><text x="90" y="195" class="small">Obsidian-ready · human-readable</text>
+<rect x="370" y="105" width="260" height="120" rx="10" class="accent"/><text x="390" y="140">Memories</text><text x="390" y="170">SQLite history + chats</text><text x="390" y="195" class="small">Scoped recall · retained provenance</text>
 <rect x="670" y="105" width="260" height="120" rx="10" class="accent"/><text x="690" y="140">Connections</text><text x="690" y="170">Shared AI client setup</text><text x="690" y="195" class="small">Claude · Codex · other MCP clients</text>
-<rect x="170" y="285" width="660" height="140" rx="10" class="box"/><text x="195" y="320" class="title">Projects / &lt;World name&gt;</text><text x="195" y="355">Atlas/graph.json + atlas.html</text><text x="195" y="382">Runtime · Inbox · Sources</text><text x="195" y="409" class="small">A World is the project name; project-local folders contain only runtime-facing material.</text>
+<rect x="170" y="285" width="660" height="140" rx="10" class="box"/><text x="195" y="320" class="title">Projects / &lt;project name&gt;</text><text x="195" y="355">CodeMap/graph.json + interactive view</text><text x="195" y="382">Runtime · Inbox · Sources</text><text x="195" y="409" class="small">Each project keeps its mapped structure and runtime-facing material separately.</text>
 <path d="M200 225v55M500 225v55M800 225v55" stroke="#8ee7ff" stroke-width="2"/><path d="M200 270h600" stroke="#8ee7ff" stroke-width="2"/>
 </svg>

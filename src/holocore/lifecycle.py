@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from .home import HomeManager
-from .install import bootstrap_project
+from .install import bootstrap_project, remove_legacy_generated_interfaces
 
 
 REPOSITORY = "https://github.com/HassanMahomed/HoloCore.git"
@@ -24,11 +24,40 @@ def installation_check() -> dict[str, Any]:
     except PackageNotFoundError:
         installed = "source-checkout"
     uv = shutil.which("uv")
-    return {"installed_version": installed, "uv_available": bool(uv), "upgrade_command": "holocore update", "uninstall_command": "uv tool uninstall holocore"}
+    native = bool(getattr(sys, "frozen", False))
+    return {
+        "installed_version": installed,
+        "install_type": "native" if native else "uv" if uv else "source",
+        "uv_available": bool(uv),
+        "upgrade_command": "holocore update",
+        "uninstall_command": "holocore uninstall" if native else "uv tool uninstall holocore",
+    }
 
 
 def uninstall_tool() -> dict[str, Any]:
     """Remove only the installed CLI; never delete project or Home data."""
+    if getattr(sys, "frozen", False):
+        installer = Path(sys.executable).resolve().parent / "install.ps1"
+        if not installer.is_file():
+            raise RuntimeError(
+                f"The Windows uninstaller is missing: {installer}. Reinstall the same release, then try again."
+            )
+        command_text = (
+            f"Wait-Process -Id {os.getpid()} -ErrorAction SilentlyContinue; "
+            f"& '{installer}' -Uninstall"
+        )
+        subprocess.Popen(
+            ["powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", command_text],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        return {
+            "uninstalled": False,
+            "uninstall_queued": True,
+            "command": [str(installer), "-Uninstall"],
+            "data_preserved": True,
+        }
     uv = shutil.which("uv")
     if not uv:
         raise RuntimeError("uv is required to uninstall the HoloCore tool.")
@@ -37,7 +66,9 @@ def uninstall_tool() -> dict[str, Any]:
     return {"uninstalled": True, "command": command, "output": completed.stdout.strip(), "data_preserved": True}
 
 
-def sync_all(home: Path | None = None, *, platforms: list[str] | None = None) -> dict[str, Any]:
+def sync_all(
+    home: Path | None = None, *, platforms: list[str] | None = None, regenerate: bool = False
+) -> dict[str, Any]:
     manager = HomeManager(home)
     listing = manager.list_worlds()
     results: list[dict[str, Any]] = []
@@ -65,6 +96,8 @@ def sync_all(home: Path | None = None, *, platforms: list[str] | None = None) ->
     vault = build_obsidian_vault(manager.home)
     from .install import inspect_client_connections
 
+    removed_legacy = remove_legacy_generated_interfaces(manager.home) if regenerate else []
+
     return {
         "home": str(manager.home),
         "worlds": results,
@@ -73,6 +106,11 @@ def sync_all(home: Path | None = None, *, platforms: list[str] | None = None) ->
         "failed": sum(1 for item in results if not item["updated"]),
         "obsidian_vault": vault,
         "connections": inspect_client_connections(),
+        "regeneration": {
+            "requested": regenerate,
+            "plain_names": regenerate,
+            "legacy_interfaces_removed": removed_legacy,
+        },
     }
 
 

@@ -31,7 +31,7 @@ def world_paths(root: Path, config: Config | None = None) -> dict[str, str]:
         "atlas_json": str(config.atlas_graph_path),
         "atlas_html": str(config.atlas_graph_path.with_name("atlas.html")),
         "atlas_runtime": str(config.atlas_path),
-        "memory_shards": str(config.animus_path),
+        "memory_shards": str(config.memory_path),
         "raw_chats": str(config.raw_chats_path),
         "runtime": str(config.state_dir),
         "claude_mcp": str((config.home / "Connections" / ".mcp.json") if config.home else root / ".mcp.json"),

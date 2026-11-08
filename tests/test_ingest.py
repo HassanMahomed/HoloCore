@@ -255,7 +255,7 @@ def test_engine_ingest_integrates_raw_memory_archive_and_graph(
     assert second["deduplicated"] is True
     assert second["integrated"][0]["memory_shards"] == []
     assert second["integrated"][0]["archive_entry"]["deduplicated"] is True
-    assert engine.router.animus.search(
+    assert engine.router.memories.search(
         "content-addressed", world=engine.router.world_id, sector="sources"
     )
 

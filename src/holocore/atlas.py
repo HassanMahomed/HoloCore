@@ -52,6 +52,19 @@ def _key(value: str) -> str:
     return re.sub(r"_+", "_", value).strip("_")
 
 
+def _semantic_tokens(*values: str) -> list[str]:
+    """Return stable search/community terms, including CamelCase word boundaries."""
+    tokens: set[str] = set()
+    for value in values:
+        expanded = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", value)
+        expanded = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", expanded)
+        for token in re.findall(r"[A-Za-z][A-Za-z0-9]{1,}", expanded):
+            folded = token.casefold()
+            if folded not in {"file", "src", "source", "test", "tests", "index", "main"}:
+                tokens.add(folded)
+    return sorted(tokens)
+
+
 def _file_id(relative: str) -> str:
     return f"file:{_key(relative)}"
 
@@ -295,7 +308,7 @@ class Atlas:
         return bool(self.freshness()["fresh"])
 
     def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
-        terms = [_key(term) for term in re.findall(r"[\w./:-]+", query, flags=re.UNICODE)]
+        terms = _semantic_tokens(query) or [_key(term) for term in re.findall(r"[\w./:-]+", query, flags=re.UNICODE)]
         if not terms or limit <= 0:
             return []
         found: list[tuple[int, str, dict[str, Any]]] = []
@@ -304,10 +317,14 @@ class Atlas:
             qualified = _key(str(node.get("qualified_name", "")))
             source = _key(str(node.get("source_file", "")))
             node_id = _key(str(node.get("id", "")))
+            semantic = set(node.get("semantic_terms") or _semantic_tokens(
+                str(node.get("label", "")), str(node.get("qualified_name", "")), str(node.get("source_file", ""))
+            ))
             score = sum(
                 (8 if term == label else 0) + (5 if term in label else 0)
                 + (3 if term in qualified else 0) + (2 if term in source else 0)
                 + (1 if term in node_id else 0)
+                + (4 if term in semantic else 0)
                 for term in terms
             )
             if score:
@@ -443,35 +460,137 @@ class Atlas:
         return {"query": query, "resolved": resolved, "match_count": len(matches), "matches": matches, "signal": node, "relationships": sorted(links, key=lambda item: (str(item.get("relation", "")), str(item.get("source", "")), str(item.get("target", ""))))}
 
     def constellations(self, *, min_size: int = 2) -> list[dict[str, Any]]:
-        """Return deterministic weakly-connected Signal communities."""
+        """Return deterministic weighted modular communities of related Signals."""
         graph = self.load_graph()
         by_id = {str(node["id"]): node for node in graph.get("nodes", [])}
-        neighbors: dict[str, set[str]] = {node_id: set() for node_id in by_id}
+        weights = {
+            "method": 5.0, "contains": 4.0, "calls": 3.5, "inherits": 3.5,
+            "imports_from": 3.0, "imports": 2.5, "uses": 2.5, "references": 2.0,
+            "described_by": 2.0, "mentions": 1.5, "records": 1.5,
+        }
+        neighbors: dict[str, dict[str, float]] = {node_id: {} for node_id in by_id}
         for link in graph.get("links", graph.get("edges", [])):
             source, target = str(link.get("source")), str(link.get("target"))
-            if source in by_id and target in by_id:
-                neighbors[source].add(target); neighbors[target].add(source)
-        seen: set[str] = set(); communities: list[list[str]] = []
-        for seed in sorted(by_id):
-            if seed in seen:
+            if source not in by_id or target not in by_id or source == target:
                 continue
-            queue, component = deque([seed]), []
-            seen.add(seed)
-            while queue:
-                current = queue.popleft(); component.append(current)
-                for neighbor in sorted(neighbors[current]):
-                    if neighbor not in seen:
-                        seen.add(neighbor); queue.append(neighbor)
-            if len(component) >= max(1, int(min_size)):
-                communities.append(sorted(component))
+            weight = weights.get(str(link.get("relation", "")), 1.0)
+            weight *= max(1, int(link.get("occurrence_count", 1)))
+            neighbors[source][target] = neighbors[source].get(target, 0.0) + weight
+            neighbors[target][source] = neighbors[target].get(source, 0.0) + weight
+
+        # A deterministic first-level Louvain pass. It separates dense feature
+        # areas even when imports make the whole project one connected graph.
+        labels = {node_id: node_id for node_id in by_id}
+        degrees = {node_id: sum(edges.values()) for node_id, edges in neighbors.items()}
+        totals = dict(degrees)
+        total_weight = sum(degrees.values()) or 1.0
+        for _ in range(30):
+            moved = False
+            for node_id in sorted(by_id, key=lambda value: (-degrees[value], value)):
+                current = labels[node_id]
+                degree = degrees[node_id]
+                totals[current] = totals.get(current, 0.0) - degree
+                candidate_weights: dict[str, float] = {}
+                for neighbor, weight in neighbors[node_id].items():
+                    label = labels[neighbor]
+                    candidate_weights[label] = candidate_weights.get(label, 0.0) + weight
+                best, best_gain = current, 0.0
+                for label, internal_weight in sorted(candidate_weights.items()):
+                    gain = internal_weight - (totals.get(label, 0.0) * degree / total_weight)
+                    if gain > best_gain + 1e-12 or (abs(gain - best_gain) <= 1e-12 and label < best):
+                        best, best_gain = label, gain
+                labels[node_id] = best
+                totals[best] = totals.get(best, 0.0) + degree
+                moved = moved or best != current
+            if not moved:
+                break
+        grouped: dict[str, list[str]] = {}
+        for node_id, label in labels.items():
+            grouped.setdefault(label, []).append(node_id)
+        communities = [sorted(members) for members in grouped.values() if len(members) >= max(1, int(min_size))]
         communities.sort(key=lambda members: (-len(members), members[0]))
         result = []
         for members in communities:
             digest = hashlib.sha256("\n".join(members).encode("utf-8")).hexdigest()[:16]
-            result.append({"id": f"constellation:{digest}", "label": str(by_id[members[0]].get("label", members[0])), "size": len(members), "signal_ids": members, "relations": sorted({str(link.get("relation", "")) for link in graph.get("links", []) if str(link.get("source")) in members and str(link.get("target")) in members}), "signals": [dict(by_id[node_id]) for node_id in members]})
+            member_set = set(members)
+            internal = [
+                link for link in graph.get("links", graph.get("edges", []))
+                if str(link.get("source")) in member_set and str(link.get("target")) in member_set
+            ]
+            signals = [dict(by_id[node_id]) for node_id in members]
+            files = sorted({str(item.get("source_file", "")) for item in signals if item.get("source_file")})
+            terms: dict[str, int] = {}
+            for item in signals:
+                semantic = item.get("semantic_terms") or _semantic_tokens(
+                    str(item.get("label", "")), str(item.get("qualified_name", "")), str(item.get("source_file", ""))
+                )
+                for term in semantic:
+                    terms[str(term)] = terms.get(str(term), 0) + 1
+            topics = [term for term, _ in sorted(terms.items(), key=lambda pair: (-pair[1], pair[0]))[:6]]
+            symbols = [str(item.get("label")) for item in signals if item.get("kind") in {"class", "function", "component"}]
+            label = " / ".join(topic.title() for topic in topics[:3]) or (Path(files[0]).stem if files else "Related items")
+            result.append({
+                "id": f"constellation:{digest}", "label": label, "size": len(members),
+                "signal_ids": members, "topics": topics, "file_count": len(files), "files": files[:20],
+                "symbols": list(dict.fromkeys(symbols))[:20], "relationship_count": len(internal),
+                "relations": sorted({str(link.get("relation", "")) for link in internal}),
+                "signals": signals,
+            })
         return result
 
     clusters = constellations
+
+    def write_community_knowledge(self, output: str | os.PathLike[str] | None = None) -> dict[str, Any]:
+        """Generate evidence-backed Markdown for current Code Map communities."""
+        destination = Path(output) if output is not None else self.graph_path.parent / "communities"
+        destination.mkdir(parents=True, exist_ok=True)
+        communities = self.constellations()
+        written: list[str] = []
+        removed: list[str] = []
+        marker = "<!-- holocore:managed-code-community -->"
+        for index, community in enumerate(communities, 1):
+            slug = re.sub(r"[^a-z0-9]+", "-", str(community["label"]).casefold()).strip("-")[:60] or "community"
+            target = destination / f"{index:02d}-{slug}-{str(community['id']).split(':')[-1][:8]}.md"
+            summary = (
+                f"This Code Map community contains {community['size']} mapped items across "
+                f"{community['file_count']} source files with {community['relationship_count']} internal relationships."
+            )
+            body = "\n".join([
+                marker, f"# {community['label']}", "", summary, "", "## Topics", "",
+                *([f"- {topic}" for topic in community["topics"]] or ["- No stable topics extracted."]),
+                "", "## Key files", "",
+                *([f"- `{path}`" for path in community["files"][:12]] or ["- No source files recorded."]),
+                "", "## Representative symbols", "",
+                *([f"- `{symbol}`" for symbol in community["symbols"][:12]] or ["- No named symbols extracted."]),
+                "", "## Evidence", "", f"- Community ID: `{community['id']}`",
+                f"- Relations: {', '.join(community['relations']) or 'none'}",
+                f"- Source digest: `{self.load_graph().get('graph', {}).get('source_digest', '')}`", "",
+            ])
+            if not target.exists() or target.read_text(encoding="utf-8") != body:
+                target.write_text(body, encoding="utf-8")
+            written.append(str(target))
+        current = {Path(path).resolve() for path in written}
+        for stale in destination.glob("*.md"):
+            if stale.name == "README.md" or stale.resolve() in current:
+                continue
+            try:
+                if marker in stale.read_text(encoding="utf-8")[:200]:
+                    stale.unlink()
+                    removed.append(str(stale))
+            except OSError:
+                continue
+        index_path = destination / "README.md"
+        index_body = "\n".join([
+            marker, "# Code Map Community Knowledge", "",
+            "Generated from structural Code Map evidence. These notes are outputs, not curated Archive sources.", "",
+            *[f"- [{Path(path).stem}]({Path(path).name})" for path in written], "",
+        ])
+        if not index_path.exists() or index_path.read_text(encoding="utf-8") != index_body:
+            index_path.write_text(index_body, encoding="utf-8")
+        return {
+            "path": str(destination), "index": str(index_path), "count": len(communities),
+            "files": written, "removed_stale": removed,
+        }
 
     def audit(self) -> dict[str, Any]:
         """Return deterministic quality findings without changing the graph."""
@@ -506,7 +625,8 @@ class Atlas:
             "",
         ]
         for item in constellations[:50]:
-            lines.append(f"- **{item['label']}** — {item['size']} items")
+            topics = ", ".join(item.get("topics", [])[:4]) or "no extracted topics"
+            lines.append(f"- **{item['label']}** — {item['size']} items, {item['relationship_count']} relationships; {topics}")
         target.parent.mkdir(parents=True, exist_ok=True)
         payload = "\n".join(lines) + "\n"
         if not target.exists() or target.read_text(encoding="utf-8") != payload:
@@ -737,7 +857,12 @@ class Atlas:
         for relative, record in records.items():
             fragment = record["fragment"]
             for node in fragment.get("nodes", []):
-                nodes[str(node["id"])] = dict(node)
+                enriched = dict(node)
+                enriched.setdefault("semantic_terms", _semantic_tokens(
+                    str(enriched.get("label", "")), str(enriched.get("qualified_name", "")),
+                    str(enriched.get("source_file", "")), str(enriched.get("kind", "")),
+                ))
+                nodes[str(node["id"])] = enriched
                 qualified = str(node.get("qualified_name", ""))
                 if qualified:
                     symbols.setdefault(qualified, []).append(str(node["id"]))

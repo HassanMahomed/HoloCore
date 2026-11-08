@@ -19,5 +19,5 @@ def test_global_graph_prefixes_world_nodes_and_keeps_only_atlas_data(tmp_path: P
 
     assert any(node["id"] == "world:demo" for node in graph["nodes"])
     assert any(node["id"] == "demo:file:a.py" for node in graph["nodes"])
-    assert graph["graph"]["source"].startswith("Atlas-only")
+    assert graph["graph"]["source"].startswith("Code Map only")
     assert Path(graph["path"]).is_file()

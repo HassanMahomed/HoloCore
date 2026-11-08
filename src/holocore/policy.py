@@ -49,18 +49,18 @@ check-first, non-recursive route for each request.
 
 1. Read the project instruction file once.
 2. Run `holocore status` before broad orientation.
-3. Check Atlas freshness before using structural results. HoloCore refreshes a
-   missing or stale Atlas once before search; do not trigger a duplicate refresh.
+3. Check Code Map freshness before using structural results. HoloCore refreshes a
+   missing or stale Code Map once before search; do not trigger a duplicate refresh.
 4. Do not repeat the full bootstrap sequence during the same session.
 
 ## Retrieval order
 
-1. **Atlas first:** use the project graph to identify relevant files, symbols, and
+1. **Code Map first:** use the project graph to identify relevant files, symbols, and
    relationships.
-2. **Archive second:** search the corresponding index and linked durable notes for
+2. **Knowledge second:** search the corresponding index and linked durable notes for
    verified rules, decisions, and guidance.
-3. **Animus third, only when relevant:** recall prior work, errors, attempts,
-   decisions, or conversations from the current World and Sector.
+3. **Memories third, only when relevant:** recall prior work, errors, attempts,
+   decisions, or conversations from the current Project and group.
 4. **Exact sources last:** open only the project files identified by the preceding
    checks.
 
@@ -70,50 +70,50 @@ Each selected subsystem may run at most once per request.
 ## Source coordination
 
 - HoloCore is the single routing layer for project context.
-- The central Second Brain is a curated Archive source, not a second automatic
-  conversation-capture engine. Read its indexed, linked notes when the Archive
+- The central Second Brain is a curated Knowledge source, not a second automatic
+  conversation-capture engine. Read its indexed, linked notes when the Knowledge
   route selects them; do not mine the whole vault.
 - Legacy Graphify outputs and MemPalace remain compatibility or migration sources.
   Query them only when HoloCore explicitly identifies a gap or the user asks for
-  historical compatibility. Do not fan out to Graphify, MemPalace, Atlas, Archive,
-  and Animus independently for the same request.
+  historical compatibility. Do not fan out to Graphify, MemPalace, Code Map,
+  Knowledge, and Memories independently for the same request.
 - Treat generated files and databases as non-source artifacts: `holocore-out`,
   `graphify-out`, `.holocore`, `.git`, MCP logs, caches, and imported copies must
   not be ingested as new knowledge.
-- Never write the same conversation or fact to both MemPalace and Animus. HoloCore
-  Animus is the default destination for new episodic history.
+- Never write the same conversation or fact to both MemPalace and Memories.
+  HoloCore Memories is the default destination for new episodic history.
 
 ## Knowledge ownership
 
-- Archive owns verified, durable, reusable knowledge.
-- Atlas owns rebuildable structural facts from project files.
-- Animus owns episodic history and refined conversation memory.
+- Knowledge owns verified, durable, reusable notes.
+- Code Map owns rebuildable structural facts from project files.
+- Memories owns episodic history and refined conversation memory.
 - Project files remain the source of truth for exact implementation details.
 - Do not copy the same raw content into every store.
 
 ## Simple distinction
 
-- **Archive** = verified knowledge.
-- **Atlas** = structural map.
-- **Animus** = remembered history.
-- **World** = project.
-- **Sector** = area inside a project.
-- **Memory Shard** = raw remembered fragment.
-- **Archive Entry** = polished durable note.
-- **Signal** = one mapped thing.
-- **Constellation** = group of related mapped things.
+- **Knowledge** = verified durable notes.
+- **Code Map** = structural map.
+- **Memories** = remembered history.
+- **Project** = one registered code or document project.
+- **Memory group** = focused area inside a project.
+- **Memory** = one retained remembered record.
+- **Knowledge note** = polished durable note.
+- **Mapped item** = one file, symbol, or relationship.
+- **Code Map group** = related mapped items.
 
 ## Writing and certainty
 
 - Setup is explicit authorization for local conversation capture, deduplicated
-  memory promotion, and one stale-Atlas refresh. Other writes remain explicit.
-- Update an existing Archive Entry before creating a duplicate.
+  memory promotion, and one stale Code Map refresh. Other writes remain explicit.
+- Update an existing Knowledge note before creating a duplicate.
 - Automatically promote only durable-looking summaries, facts, and decisions,
   retaining transcript provenance so they can be reviewed.
 - Record uncertain claims as open questions, never as settled facts.
-- Refresh Atlas after meaningful source changes.
-- Store meaningful project history in Animus; do not mine the entire Archive.
-- Promote verified durable knowledge into the central Archive only once, updating
+- Refresh the Code Map after meaningful source changes.
+- Store meaningful project history in Memories; do not mine all Knowledge notes.
+- Promote verified durable knowledge into central Knowledge only once, updating
   an existing note before creating a new one.
 - If a route result points to another HoloCore command, do not execute it
   automatically unless the user explicitly requested that write or refresh.

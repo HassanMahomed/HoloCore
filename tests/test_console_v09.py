@@ -14,7 +14,7 @@ def test_console_exposes_v09_activity_filters_handoffs_and_connections(
     root = tmp_path / "world"
     HoloCoreEngine(root).initialize(git=False, home=isolated_holocore_home, platforms=[])
     config = Config.load(root=root)
-    ledger = ActivityLedger(config.animus_path)
+    ledger = ActivityLedger(config.memory_path)
     ledger.record_hook(
         {
             "hook_event_name": "PostToolUse",
@@ -35,3 +35,24 @@ def test_console_exposes_v09_activity_filters_handoffs_and_connections(
     assert set(payload["connections"]) == {"claude", "codex", "cursor", "gemini", "opencode"}
     assert "Search agents, tools, status, or affected items" in html
     assert "AI connections" in html
+
+
+def test_console_exposes_complete_memory_filters_provenance_and_guided_workflows(
+    tmp_path: Path, isolated_holocore_home: Path
+) -> None:
+    root = tmp_path / "memory-console"
+    engine = HoloCoreEngine(root)
+    engine.initialize(git=False, home=isolated_holocore_home, platforms=[])
+    engine.remember("The research workflow must preserve provenance.", sector="project", source="test://console")
+
+    payload = build_console_payload(root)
+    html = render_console_html(payload)
+
+    assert payload["memory_browser"]["total"] == 1
+    assert payload["memory_browser"]["items"][0]["provenance"][0]["source_ref"] == "test://console"
+    assert "Search memories" in html
+    assert "Provenance and retention details" in html
+    assert "Forget this memory" in html
+    assert "Research & Architecture" in html
+    assert "Read-only until you explicitly save" in html
+    assert "prefers-reduced-motion" in html

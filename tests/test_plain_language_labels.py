@@ -37,7 +37,7 @@ def test_console_navigation_uses_plain_language_sections() -> None:
         "commands": [],
     })
 
-    assert "'Overview','Chat History','Memories','Knowledge','Code Map','Agent Activity','Locations','Commands','Setup & Updates'" in html
+    assert "'Overview','Chat History','Memories','Research & Architecture','Knowledge','Code Map','Agent Activity','Locations','Commands','Setup & Updates'" in html
     assert "Browse and search" in html
     assert "Save knowledge" in html
     assert "Setup and updates" in html
