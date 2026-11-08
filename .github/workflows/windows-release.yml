@@ -187,6 +187,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           prerelease: ${{ contains(github.ref_name, '-rc.') }}
+          body: |
+            ## Windows release
+
+            Download `holocore-setup-windows-x64.exe` for the guided installer. SHA-256 checksums, the release manifest, SBOM, and GitHub build provenance are published with every release.
+
+            ## Code signing policy
+
+            HoloCore publishes checksum-verified unsigned community builds until its SignPath Foundation application is accepted and integrated. Future signed builds will use free code signing provided by SignPath.io, certificate by SignPath Foundation.
+
+            See the [HoloCore code signing policy](https://github.com/HassanMahomed/HoloCore/blob/main/docs/code-signing-policy.md).
           files: |
             dist/holocore-windows-x64.exe
             dist/holocore-windows-x64.exe.sha256
