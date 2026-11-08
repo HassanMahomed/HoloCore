@@ -15,16 +15,16 @@ from holocore.mcp_server import PROMPTS, TOOLS
 from holocore.parity import assert_parity, compatibility_matrix
 
 
-def test_repository_and_package_use_mit_license() -> None:
+def test_repository_and_package_use_gplv3_license() -> None:
     root = Path(__file__).parents[1]
     license_text = (root / "LICENSE").read_text(encoding="utf-8")
     pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
     readme = (root / "README.md").read_text(encoding="utf-8")
 
-    assert license_text.startswith("MIT License\n")
-    assert "Permission is hereby granted, free of charge" in license_text
-    assert 'license = "MIT"' in pyproject
-    assert "License: MIT" in readme
+    assert license_text.startswith("GNU GENERAL PUBLIC LICENSE\nVersion 3, 29 June 2007\n")
+    assert "END OF TERMS AND CONDITIONS" in license_text
+    assert 'license = "GPL-3.0-only"' in pyproject
+    assert "License: GPL v3" in readme
 
 
 def test_generated_interfaces_and_mcp_prompts_have_no_drift() -> None:

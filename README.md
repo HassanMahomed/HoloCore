@@ -1,6 +1,6 @@
 # HoloCore Context Engine
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENSE)
 
 ![HoloCore Context Engine icon](docs/assets/holocore-icon.png)
 
@@ -243,7 +243,7 @@ Raw chats and Memories can contain sensitive information. HoloCore excludes thei
 
 ## License and development
 
-HoloCore is open-source software licensed under the permissive [MIT License](LICENSE). You may use, copy, modify, merge, publish, distribute, sublicense, and sell copies while retaining the copyright and license notice. Contributions and improvements are welcome. Third-party behavioral inspirations and their licenses are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+HoloCore is free and open-source software licensed under the [GNU General Public License v3.0 only](LICENSE). Anyone may use, study, fork, and modify it. If you distribute HoloCore or a modified version, you must provide the corresponding source code under GPLv3 and preserve the same freedoms for recipients. Private modifications do not have to be published. Contributions and improvements are welcome. Third-party behavioral inspirations and their licenses are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Development verification:
 
