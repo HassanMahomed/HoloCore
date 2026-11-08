@@ -117,4 +117,4 @@ Run:
 holocore uninstall
 ```
 
-For a native installation, `holocore uninstall` removes the installed executables, cached installer, rollback files, user PATH entry, and Start menu shortcut. HoloCore Home and every project are intentionally preserved.
+For a native installation, uninstall from **Windows Settings → Apps → Installed apps**, the **Uninstall HoloCore** Start menu shortcut, HoloCore Setup, or `holocore uninstall`. The confirmation window removes the installed executables, cached installer, rollback files, user PATH entry, Start menu shortcuts, and Installed Apps registration. HoloCore Home and every project are intentionally preserved.

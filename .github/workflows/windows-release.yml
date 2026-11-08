@@ -87,6 +87,7 @@ jobs:
           --paths src
           --collect-submodules holocore
           --add-data "docs/assets/holocore-icon.png;holocore-assets"
+          --add-data "install.ps1;holocore-assets"
           --add-binary "dist/holocore-windows-x64.exe;holocore-payload"
           src/holocore/setup_app.py
       - name: Sign setup executable
@@ -111,6 +112,10 @@ jobs:
           if ($setupVersion -ne $expected) { throw "Setup artifact reports $setupVersion; expected $expected" }
           & .\dist\holocore-setup-windows-x64.exe --ui-smoke-test
           if ($LASTEXITCODE -ne 0) { throw "Built Setup native UI smoke test failed" }
+          & .\dist\holocore-setup-windows-x64.exe --uninstall-ui-smoke-test
+          if ($LASTEXITCODE -ne 0) { throw "Built Setup uninstaller UI smoke test failed" }
+          & .\dist\holocore-setup-windows-x64.exe --embedded-install-smoke-test --install-dir "$env:RUNNER_TEMP\holocore-embedded-smoke"
+          if ($LASTEXITCODE -ne 0) { throw "Built Setup embedded install smoke test failed" }
           & .\dist\holocore-windows-x64.exe --json --root "$env:RUNNER_TEMP\holocore-smoke" init --no-git --home "$env:RUNNER_TEMP\holocore-home" | Out-Host
           if ($LASTEXITCODE -ne 0) { throw "Built CLI smoke setup failed" }
           & .\dist\holocore-windows-x64.exe --json --root "$env:RUNNER_TEMP\holocore-smoke" status | Out-Host
@@ -152,16 +157,26 @@ jobs:
           $install = Join-Path $env:RUNNER_TEMP 'holocore-lifecycle-install'
           $lifecycleHome = Join-Path $env:RUNNER_TEMP 'holocore-lifecycle-home'
           $project = Join-Path $env:RUNNER_TEMP 'holocore-lifecycle-project'
-          & .\install.ps1 -Version $releaseTag -Yes -NoUI -InstallDir $install -ReleaseDirectory .\dist -SkipShellIntegration -Home $lifecycleHome -Project $project
+          & .\install.ps1 -Version $releaseTag -Yes -NoUI -InstallDir $install -ReleaseDirectory .\dist -Home $lifecycleHome -Project $project
           if ($LASTEXITCODE -ne 0) { throw 'Clean install lifecycle failed.' }
+          $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\HoloCore'
+          $registration = Get-ItemProperty -LiteralPath $uninstallKey
+          if ($registration.DisplayVersion -ne $version) { throw 'Installed Apps registration has the wrong version.' }
+          if ($registration.UninstallString -notmatch '--uninstall') { throw 'Installed Apps registration has no graphical uninstaller.' }
+          $programs = [Environment]::GetFolderPath('Programs')
+          if (-not (Test-Path -LiteralPath (Join-Path $programs 'HoloCore Setup.lnk'))) { throw 'Setup shortcut was not created.' }
+          if (-not (Test-Path -LiteralPath (Join-Path $programs 'Uninstall HoloCore.lnk'))) { throw 'Uninstall shortcut was not created.' }
           & (Join-Path $install 'holocore.exe') --root $project --json status | Out-Host
           if ($LASTEXITCODE -ne 0) { throw 'Installed CLI status failed.' }
-          & .\install.ps1 -Version $releaseTag -Yes -UpgradeOnly -InstallDir $install -ReleaseDirectory .\dist -SkipShellIntegration -Home $lifecycleHome
+          & .\install.ps1 -Version $releaseTag -Yes -UpgradeOnly -InstallDir $install -ReleaseDirectory .\dist -Home $lifecycleHome
           if (-not (Test-Path -LiteralPath (Join-Path $install 'holocore.exe.previous'))) { throw 'Upgrade did not retain rollback engine.' }
-          & .\install.ps1 -Rollback -InstallDir $install -SkipShellIntegration
+          & .\install.ps1 -Rollback -InstallDir $install
           if ($LASTEXITCODE -ne 0) { throw 'Rollback lifecycle failed.' }
-          & .\install.ps1 -Uninstall -InstallDir $install -SkipShellIntegration
+          & .\install.ps1 -Uninstall -InstallDir $install
           if (Test-Path -LiteralPath $install) { throw 'Uninstall left application files behind.' }
+          if (Test-Path -LiteralPath $uninstallKey) { throw 'Uninstall left the Installed Apps registration behind.' }
+          if (Test-Path -LiteralPath (Join-Path $programs 'HoloCore Setup.lnk')) { throw 'Uninstall left the Setup shortcut behind.' }
+          if (Test-Path -LiteralPath (Join-Path $programs 'Uninstall HoloCore.lnk')) { throw 'Uninstall left its Start menu shortcut behind.' }
           if (-not (Test-Path -LiteralPath $lifecycleHome)) { throw 'Uninstall removed HoloCore Home.' }
       - uses: actions/upload-artifact@v4
         with:

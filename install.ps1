@@ -26,6 +26,7 @@ $installDir = if ([string]::IsNullOrWhiteSpace($InstallDir)) {
 $exePath = Join-Path $installDir "holocore.exe"
 $setupExePath = Join-Path $installDir "HoloCore Setup.exe"
 $installerPath = Join-Path $installDir "install.ps1"
+$uninstallRegistryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\HoloCore"
 $temporaryDir = Join-Path ([IO.Path]::GetTempPath()) ("holocore-install-" + [guid]::NewGuid().ToString("N"))
 $downloadedExe = Join-Path $temporaryDir "holocore.exe"
 $downloadedSetupExe = Join-Path $temporaryDir "HoloCore Setup.exe"
@@ -87,12 +88,59 @@ function Remove-FromUserPath([string]$Directory) {
     [Environment]::SetEnvironmentVariable("Path", ($parts -join ";"), "User")
 }
 
+function Install-HoloCoreShellIntegration([string]$DisplayVersion) {
+    Add-ToUserPath $installDir
+    $startMenu = [Environment]::GetFolderPath("Programs")
+    $shell = New-Object -ComObject WScript.Shell
+
+    $setupShortcut = $shell.CreateShortcut((Join-Path $startMenu "HoloCore Setup.lnk"))
+    $setupShortcut.TargetPath = $setupExePath
+    $setupShortcut.WorkingDirectory = $installDir
+    $setupShortcut.Description = "Configure HoloCore folders, AI tools, features, and local models"
+    $setupShortcut.Save()
+
+    $uninstallShortcut = $shell.CreateShortcut((Join-Path $startMenu "Uninstall HoloCore.lnk"))
+    $uninstallShortcut.TargetPath = $setupExePath
+    $uninstallShortcut.Arguments = "--uninstall"
+    $uninstallShortcut.WorkingDirectory = $installDir
+    $uninstallShortcut.Description = "Uninstall HoloCore while preserving Home, memories, Knowledge, and projects"
+    $uninstallShortcut.Save()
+
+    New-Item -Path $uninstallRegistryPath -Force | Out-Null
+    $estimatedSize = [Math]::Max(1, [int](
+        (Get-ChildItem -LiteralPath $installDir -File | Measure-Object -Property Length -Sum).Sum / 1KB
+    ))
+    $uninstallCommand = '"' + $setupExePath + '" --uninstall'
+    $quietUninstallCommand = '"' + $setupExePath + '" --uninstall --quiet'
+    New-ItemProperty -Path $uninstallRegistryPath -Name "DisplayName" -Value "HoloCore" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallRegistryPath -Name "DisplayVersion" -Value $DisplayVersion -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallRegistryPath -Name "DisplayIcon" -Value $setupExePath -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallRegistryPath -Name "Publisher" -Value "HoloCore contributors" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallRegistryPath -Name "InstallLocation" -Value $installDir -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallRegistryPath -Name "UninstallString" -Value $uninstallCommand -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallRegistryPath -Name "QuietUninstallString" -Value $quietUninstallCommand -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallRegistryPath -Name "URLInfoAbout" -Value "https://github.com/HassanMahomed/HoloCore" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallRegistryPath -Name "NoModify" -Value 1 -PropertyType DWord -Force | Out-Null
+    New-ItemProperty -Path $uninstallRegistryPath -Name "NoRepair" -Value 1 -PropertyType DWord -Force | Out-Null
+    New-ItemProperty -Path $uninstallRegistryPath -Name "EstimatedSize" -Value $estimatedSize -PropertyType DWord -Force | Out-Null
+}
+
+function Remove-HoloCoreShellIntegration {
+    Remove-FromUserPath $installDir
+    $startMenu = [Environment]::GetFolderPath("Programs")
+    foreach ($name in @("HoloCore Setup.lnk", "Uninstall HoloCore.lnk")) {
+        $shortcutPath = Join-Path $startMenu $name
+        if (Test-Path -LiteralPath $shortcutPath) { Remove-Item -LiteralPath $shortcutPath -Force }
+    }
+    if (Test-Path -LiteralPath $uninstallRegistryPath) {
+        Remove-Item -LiteralPath $uninstallRegistryPath -Recurse -Force
+    }
+}
+
 function Invoke-HoloCoreUninstall {
     Write-Host "Uninstalling HoloCore application files..." -ForegroundColor Cyan
     if (-not $SkipShellIntegration) {
-        Remove-FromUserPath $installDir
-        $shortcutPath = Join-Path ([Environment]::GetFolderPath("Programs")) "HoloCore Setup.lnk"
-        if (Test-Path -LiteralPath $shortcutPath) { Remove-Item -LiteralPath $shortcutPath -Force }
+        Remove-HoloCoreShellIntegration
     }
     if (Test-Path -LiteralPath $installDir) { Remove-Item -LiteralPath $installDir -Recurse -Force }
     Write-Host "HoloCore application files were removed. HoloCore Home and all project data were preserved." -ForegroundColor Green
@@ -177,24 +225,16 @@ try {
     }
     Move-Item -LiteralPath $downloadedExe -Destination $exePath -Force
     Move-Item -LiteralPath $downloadedSetupExe -Destination $setupExePath -Force
-    if (-not $SkipShellIntegration) { try {
-        $startMenu = [Environment]::GetFolderPath("Programs")
-        $shortcutPath = Join-Path $startMenu "HoloCore Setup.lnk"
-        $shell = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut($shortcutPath)
-        $shortcut.TargetPath = $setupExePath
-        $shortcut.WorkingDirectory = $installDir
-        $shortcut.Description = "Configure HoloCore folders, AI tools, features, and local models"
-        $shortcut.Save()
-    } catch {
-        Write-Warning "HoloCore was installed, but the Start menu shortcut could not be created."
-    } }
     if ($null -ne $releaseBase) {
         Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/install.ps1" -OutFile $installerPath
     } else {
         Copy-Item -LiteralPath $PSCommandPath -Destination $installerPath -Force
     }
-    if (-not $SkipShellIntegration) { Add-ToUserPath $installDir }
+    if (-not $SkipShellIntegration) { try {
+        Install-HoloCoreShellIntegration -DisplayVersion ([string]$manifest.version)
+    } catch {
+        Write-Warning "HoloCore was installed, but Windows app registration could not be completed: $($_.Exception.Message)"
+    } }
 
     if (-not $Yes -and -not $NoUI -and -not $UpgradeOnly) {
         $wizardArguments = [System.Collections.Generic.List[string]]::new()

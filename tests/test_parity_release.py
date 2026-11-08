@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from holocore.commands import COMMANDS
 from holocore.activity import ActivityLedger
+from holocore.commands import COMMANDS
 from holocore.engine import HoloCoreEngine
 from holocore.mcp_server import PROMPTS, TOOLS
 from holocore.parity import assert_parity, compatibility_matrix
@@ -52,6 +52,7 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
     assert "--windowed" in workflow
     assert "holocore-setup-windows-x64" in workflow
     assert workflow.count("--icon docs/assets/holocore-icon.ico") == 2
+    assert '--add-data "install.ps1;holocore-assets"' in workflow
     assert "src/holocore/setup_app.py" in workflow
     assert "--add-binary" in workflow
     assert "holocore-payload" in workflow
@@ -68,6 +69,8 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
     assert "Publishing a checksum-verified community release" in workflow
     assert "signtool" in workflow
     assert "--ui-smoke-test" in workflow
+    assert "--uninstall-ui-smoke-test" in workflow
+    assert "--embedded-install-smoke-test" in workflow
     assert "holocore-sbom.cdx.json" in workflow
     assert "actions/attest-build-provenance@v2" in workflow
     assert "Execute release install lifecycle" in workflow
@@ -88,6 +91,12 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
     assert "checksum was unavailable" not in installer
     assert '"$releaseBase/install.ps1"' in installer
     assert "Invoke-HoloCoreUninstall" in installer
+    assert "CurrentVersion\\Uninstall\\HoloCore" in installer
+    assert "Uninstall HoloCore.lnk" in installer
+    assert "QuietUninstallString" in installer
+    assert 'Arguments = "--uninstall"' in installer
+    assert "Installed Apps registration has the wrong version" in workflow
+    assert "Uninstall left the Installed Apps registration behind" in workflow
 
 
 @pytest.fixture
