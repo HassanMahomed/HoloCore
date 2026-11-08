@@ -11,4 +11,4 @@ HoloCore does not bundle, import, launch, or require these projects at runtime. 
 
 If a future HoloCore distribution copies or includes a substantial portion of third-party source code, the applicable copyright and permission notices must be preserved with that distribution. Consult each linked project and its current license before redistributing third-party material.
 
-HoloCore itself is distributed under the [Apache License 2.0](LICENSE). This does not replace or alter any license that applies to third-party material.
+HoloCore itself is distributed under the [GNU General Public License v3.0 only](LICENSE). This does not replace or alter any license that applies to third-party material.
