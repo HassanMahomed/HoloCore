@@ -1,5 +1,7 @@
 # HoloCore Context Engine
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ![HoloCore Context Engine icon](docs/assets/holocore-icon.png)
 
 **HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `1.0.0` brings the Memories workspace, semantic Code Map, guided research and architecture workflows, native Windows setup, recoverable upgrades, and plain-language integrations into one supported release line.
@@ -241,7 +243,7 @@ Raw chats and Memories can contain sensitive information. HoloCore excludes thei
 
 ## License and development
 
-HoloCore is licensed under the [Apache License 2.0](LICENSE). Third-party behavioral inspirations and their licenses are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+HoloCore is open-source software licensed under the permissive [MIT License](LICENSE). You may use, copy, modify, merge, publish, distribute, sublicense, and sell copies while retaining the copyright and license notice. Contributions and improvements are welcome. Third-party behavioral inspirations and their licenses are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Development verification:
 
