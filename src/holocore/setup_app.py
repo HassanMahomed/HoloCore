@@ -481,6 +481,8 @@ class NativeSetupApp:
         ttk.Label(nav, text="No cloud account required.\nNo project content is uploaded.", style="NavText.TLabel", justify="left").pack(side="bottom", anchor="w", padx=24, pady=(12, 28))
         self.uninstall_button = ttk.Button(nav, text="Uninstall HoloCore", style="NavAction.TButton", command=self._request_uninstall)
         self.uninstall_button.pack(side="bottom", fill="x", padx=24)
+        ttk.Button(nav, text="Open control centre", style="NavAction.TButton",
+                   command=self._open_desktop).pack(side="bottom", fill="x", padx=24, pady=8)
 
         outer = ttk.Frame(self.root, style="Panel.TFrame")
         outer.grid(row=0, column=1, sticky="nsew")
@@ -503,6 +505,18 @@ class NativeSetupApp:
         self.footer_status.grid(row=0, column=1, padx=16, sticky="w")
         self.next_button = ttk.Button(footer, text="Continue", style="Primary.TButton", command=self.next)
         self.next_button.grid(row=0, column=2, sticky="e")
+
+    def _open_desktop(self) -> None:
+        if self.applying:
+            return
+        command = [sys.executable]
+        if not getattr(sys, "frozen", False):
+            command.extend(["-m", "holocore.setup_app"])
+        command.append("--desktop")
+        for flag, value in (("--home", self.home_var.get().strip()), ("--project", self.project_var.get().strip())):
+            if value:
+                command.extend([flag, value])
+        subprocess.Popen(command, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
     def _clear_content(self) -> ttk.Frame:
         for child in self.content.winfo_children():
@@ -804,7 +818,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--uninstall-worker", action="store_true")
     parser.add_argument("--install-dir")
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--desktop", action="store_true")
+    parser.add_argument("--desktop-ui-smoke-test", action="store_true")
     args = parser.parse_args(argv)
+    if args.desktop_ui_smoke_test:
+        from holocore.desktop_app import run_desktop_ui_smoke_test
+        return run_desktop_ui_smoke_test()
+    if args.desktop:
+        from holocore.desktop_app import launch_desktop_app
+        return launch_desktop_app(project=args.project, home=args.home)
     if args.ui_smoke_test:
         return run_native_ui_smoke_test()
     if args.uninstall_ui_smoke_test:

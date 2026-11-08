@@ -171,6 +171,8 @@ def main() -> int:
     sub.add_parser("status")
     sub.add_parser("detect-clients", help="Find supported AI clients installed on this computer")
     sub.add_parser("connections", help="Show which installed AI clients are connected to HoloCore")
+    desktop = sub.add_parser("desktop", help="Open the native HoloCore control centre")
+    desktop.add_argument("--home", help="HoloCore Home folder")
     console = sub.add_parser("console", help="Open the local HoloCore browser Console")
     console.add_argument("--port", type=int, default=0, help="Local port (0 chooses a free port)")
     console.add_argument("--no-open", action="store_true", help="Print the URL without opening a browser")
@@ -385,6 +387,9 @@ def main() -> int:
             for name, detail in value.items():
                 print(f"{name.title():10} {detail['state']:16} {detail['detail']}")
         return 0
+    if args.command == "desktop":
+        from .desktop_app import launch_desktop_app
+        return launch_desktop_app(project=root, home=args.home)
     if args.command == "console":
         from .console import export_console, serve_console
         if args.export:

@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import sqlite3
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -297,6 +297,10 @@ class MemoryStore:
             self.migration_report["from_version"] = from_version
             if from_version > SCHEMA_VERSION:
                 raise RuntimeError(f"unsupported Memories schema version: {from_version}")
+            if from_version == SCHEMA_VERSION:
+                # Routine reads/capture must not scan the whole growing database or
+                # acquire a schema write lock. Explicit backups validate integrity.
+                return
             if from_version < SCHEMA_VERSION and existing_tables:
                 self._assert_integrity(db, "before migration")
                 db.commit()
@@ -354,8 +358,9 @@ class MemoryStore:
         backup = self.path.with_name(
             f"{self.path.name}.pre-v{SCHEMA_VERSION}-from-v{from_version}-{stamp}.bak"
         )
-        with sqlite3.connect(backup) as target:
+        with closing(sqlite3.connect(backup)) as target:
             db.backup(target)
+            self._assert_integrity(target, "in migration backup")
         return backup
 
     def close(self) -> None:

@@ -12,6 +12,18 @@
 
 The runtime is HoloCore-native. It does not import, launch, or require the original Obsidian Second Brain, Graphify, or MemPalace applications. Those projects were behavioral references for the rewrite and are not runtime components.
 
+## Next release: v1.1
+
+The [post-v1 roadmap](docs/roadmap.md) covers the native desktop control centre,
+verified connection health, memory review, task context packs, efficient background
+processing, quality measurements, agent handoffs, and backup/restore controls.
+Obsidian and Notion integrations will use the same HoloCore service foundation.
+See [v1.1 implementation status](docs/v1.1.md) for delivered features and remaining gates.
+
+From a source checkout, run `holocore desktop` to open the native control centre.
+The Setup application also offers **Open control centre**. These additions are
+under development for v1.1 and are not included in the v1.0.1 download.
+
 ## In simple terms
 
 HoloCore gives an AI assistant three kinds of context, using plain names in the user interface:

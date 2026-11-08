@@ -114,6 +114,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Built Setup native UI smoke test failed" }
           & .\dist\holocore-setup-windows-x64.exe --uninstall-ui-smoke-test
           if ($LASTEXITCODE -ne 0) { throw "Built Setup uninstaller UI smoke test failed" }
+          & .\dist\holocore-setup-windows-x64.exe --desktop-ui-smoke-test
+          if ($LASTEXITCODE -ne 0) { throw "Built desktop control centre smoke test failed" }
           & .\dist\holocore-setup-windows-x64.exe --embedded-install-smoke-test --install-dir "$env:RUNNER_TEMP\holocore-embedded-smoke"
           if ($LASTEXITCODE -ne 0) { throw "Built Setup embedded install smoke test failed" }
           & .\dist\holocore-windows-x64.exe --json --root "$env:RUNNER_TEMP\holocore-smoke" init --no-git --home "$env:RUNNER_TEMP\holocore-home" | Out-Host
