@@ -74,6 +74,8 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
     assert "release-manifest.json" in workflow
     assert '$releaseTag = if ($tagged) { $env:GITHUB_REF_NAME } else { "v$version" }' in workflow
     assert "prerelease: ${{ contains(github.ref_name, '-rc.') }}" in workflow
+    assert "Free code signing provided by SignPath.io, certificate by SignPath Foundation.".lower() in workflow.lower()
+    assert "docs/code-signing-policy.md" in workflow
     assert "-Version $releaseTag" in workflow
     assert "releases/latest/download" not in installer
     assert "release-manifest.json" in installer
