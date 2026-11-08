@@ -40,12 +40,12 @@ def test_new_application_combines_wiki_graph_memory_git_and_ai_links(
     second = engine.remember("Fixed the native installation workflow", "project", str(source))
     assert first["created"] is True
     assert second["deduplicated"] is True
-    assert engine.router.animus.search(
+    assert engine.router.memories.search(
         "installation", world=engine.router.world_id, sector="project"
     )
 
     names = {tool["name"] for tool in TOOLS}
-    assert {"holocore_search", "holocore_archive_search", "holocore_atlas_search", "holocore_remember", "holocore_recall"} <= names
+    assert {"holocore_search", "holocore_archive_search", "holocore_code_map_search", "holocore_remember", "holocore_recall"} <= names
     assert call(engine, "holocore_status", {})["world"] == str(world.resolve())
     assert "search" in {prompt["name"] for prompt in PROMPTS}
     assert "holocore search" in get_prompt("search", {"arguments": "architecture"})["messages"][0]["content"]["text"]

@@ -56,10 +56,10 @@ def build_obsidian_vault(home: str | Path, *, output: str | Path | None = None) 
 
 Open this folder as an Obsidian vault to see the structural graph of every registered HoloCore World.
 
-This is a generated, read-only view. Source project files, World Atlases, Archive notes, and Animus data remain in their original locations.
+This is a generated, read-only view. Source project files, project Code Maps, Knowledge notes, and Memories data remain in their original locations.
 
 - [[system/index|Start here]]
-- Generated from the Atlas-only cross-World graph.
+- Generated from the Code Map-only cross-project graph.
 - Run `holocore obsidian-vault` to refresh this view.
 """)
     _write(destination / "system" / "index.md", f"""{GENERATED_MARKER}
@@ -112,7 +112,7 @@ World ID: `{world_id}`
 
     _write(destination / "system" / "atlas-manifest.json", json.dumps({
         "generator": "holocore-obsidian-vault",
-        "source": "Atlas-only; Archive and Animus remain World-owned",
+        "source": "Code Map only; Knowledge and Memories remain project-owned",
         "home": str(home_path),
         "worlds": sorted(world_nodes),
         "nodes": len(nodes),

@@ -1,4 +1,4 @@
-"""Provider-neutral conversation import normalization for Animus ingestion."""
+"""Provider-neutral conversation import normalization for Memories ingestion."""
 from __future__ import annotations
 
 import hashlib
@@ -22,7 +22,7 @@ def _text(value: Any) -> str:
 
 
 class ConversationImporter:
-    """Normalize common ChatGPT, Slack, and generic exports into Animus messages."""
+    """Normalize common ChatGPT, Slack, and generic exports into Memories messages."""
 
     def import_file(self, path: str | Path, *, provider: str = "auto") -> dict[str, Any]:
         source = Path(path).expanduser().resolve()

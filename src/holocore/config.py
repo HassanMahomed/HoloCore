@@ -13,6 +13,7 @@ class Config:
     llm: dict | None = None
     home: Path | None = None
     world_id: str | None = None
+    memories: Path | None = None
     animus: Path | None = None
     raw_chats: Path | None = None
     atlas_graph: Path | None = None
@@ -64,7 +65,7 @@ class Config:
                 state_dir=world_dir / "Runtime",
                 home=home,
                 world_id=world_id,
-                animus=folders.memories / "animus.db",
+                memories=folders.memories / "animus.db",
                 raw_chats=folders.chat_history / world_id,
                 atlas_graph=folders.code_map(world_dir) / "graph.json",
             )
@@ -73,13 +74,25 @@ class Config:
     @classmethod
     def load(cls, path: Path | None = None, root: Path | None = None) -> "Config":
         root = (root or Path.cwd()).resolve(); default = cls.for_world(root); path = path or root / ".holocore" / "config.json"
-        if not path.exists(): return default
+        home_llm = None
+        if default.home is not None:
+            from .local_models import LocalModelManager
+            home_llm = LocalModelManager(default.home).provider_config()
+        if not path.exists():
+            default.llm = home_llm
+            return default
         raw = json.loads(path.read_text(encoding="utf-8"))
         # A registered Home World owns runtime paths. Project-local configs
         # from older releases can point at hashed folders, local databases, or
         # the removed Shared Archive, which makes recall silently empty.
         if default.home is not None:
-            default.llm = raw.get("llm") or default.llm
+            legacy = raw.get("llm")
+            if isinstance(legacy, dict) and legacy.get("base_url") and legacy.get("model"):
+                default.llm = {**legacy, "_source": "legacy"}
+            elif home_llm:
+                default.llm = {**(legacy if isinstance(legacy, dict) else {}), **home_llm}
+            else:
+                default.llm = legacy if isinstance(legacy, dict) else default.llm
             return default
         return cls(
             vault=Path(raw.get("archive", raw.get("vault", default.vault))),
@@ -87,6 +100,7 @@ class Config:
             llm=raw.get("llm"),
             home=Path(raw["home"]) if raw.get("home") else None,
             world_id=str(raw.get("world_id")) if raw.get("world_id") else None,
+            memories=Path(raw["memories"]) if raw.get("memories") else None,
             animus=Path(raw["animus"]) if raw.get("animus") else None,
             raw_chats=Path(raw["raw_chats"]) if raw.get("raw_chats") else None,
             atlas_graph=Path(raw["atlas_graph"]) if raw.get("atlas_graph") else None,
@@ -99,12 +113,17 @@ class Config:
     def atlas_graph_path(self) -> Path: return self.atlas_graph or self.state_dir / "Atlas" / "graph.json"
 
     @property
-    def animus_path(self) -> Path: return self.animus or self.state_dir / "animus.db"
+    def memory_path(self) -> Path: return self.memories or self.animus or self.state_dir / "animus.db"
+
+    @property
+    def animus_path(self) -> Path:
+        """Compatibility alias for the persisted v0.x configuration field."""
+        return self.memory_path
 
     @property
     def raw_chats_path(self) -> Path: return self.raw_chats or self.state_dir / "raw-chats"
 
     def save(self, path: Path | None = None) -> Path:
         path = path or self.state_dir / "world.json"; path.parent.mkdir(parents=True, exist_ok=True)
-        if not path.exists(): path.write_text(json.dumps({"version": 5, "archive": str(self.vault), "state_dir": str(self.state_dir), "home": str(self.home) if self.home else None, "world_id": self.world_id, "animus": str(self.animus) if self.animus else None, "raw_chats": str(self.raw_chats) if self.raw_chats else None, "atlas_graph": str(self.atlas_graph) if self.atlas_graph else None, "llm": self.llm or {"provider": "local"}}, indent=2), encoding="utf-8")
+        if not path.exists(): path.write_text(json.dumps({"version": 6, "archive": str(self.vault), "state_dir": str(self.state_dir), "home": str(self.home) if self.home else None, "world_id": self.world_id, "memories": str(self.memory_path), "raw_chats": str(self.raw_chats) if self.raw_chats else None, "atlas_graph": str(self.atlas_graph) if self.atlas_graph else None, "llm": self.llm or {"provider": "local"}}, indent=2), encoding="utf-8")
         return path

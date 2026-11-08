@@ -2,7 +2,7 @@
 
 ![HoloCore Context Engine icon](docs/assets/holocore-icon.png)
 
-**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `0.13.0` adds local agent activity capture for Cursor, Gemini CLI, and OpenCode alongside Claude Code and Codex.
+**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `1.0.0` brings the Memories workspace, semantic Code Map, guided research and architecture workflows, native Windows setup, recoverable upgrades, and plain-language integrations into one supported release line.
 
 ![HoloCore checks project readiness, uses the Code Map and Knowledge, recalls prior work when relevant, and sends focused context to reduce input tokens](docs/assets/holocore-context-engine-token-savings.png)
 
@@ -58,11 +58,11 @@ On the HoloCore repository, the corrected relevance-gated route returned fewer e
 | Graphify-only | ~242 |
 | HoloCore | ~156 |
 
-HoloCore used approximately 35.5% fewer retrieval tokens than Graphify across five code questions. Code queries used `check → Atlas`; architecture and prior-work queries used bounded `check → Atlas → Archive → Animus` routes. Full timings and reproduction details are in the [plain-text benchmark results](benchmarks/holocore-vs-graphify-2026-07-16.txt).
+HoloCore used approximately 35.5% fewer retrieval tokens than the structural-map-only baseline across five code questions. Code queries used `check → Code Map`; architecture and prior-work queries used bounded `check → Code Map → Knowledge → Memories` routes. Full timings and reproduction details are in the [plain-text benchmark results](benchmarks/holocore-vs-graphify-2026-07-16.txt).
 
 To view every registered project's structural graph in Obsidian, run `holocore obsidian-vault`, then open the generated `HoloCore Obsidian Vault` folder inside HoloCore Home as the Obsidian vault.
 
-The shared Obsidian view can refresh automatically. `holocore watch --install --home "C:\\Brains\\Holocore Home"` installs a Windows logon trigger; it polls registered Worlds every 30 seconds, reconciles changed Worlds, and regenerates `HoloCore Obsidian Vault`. The watcher reads World sources and Atlas inputs only, so its generated Markdown cannot trigger a refresh loop. `holocore watch --uninstall` removes the trigger.
+The shared Obsidian view can refresh automatically. `holocore watch --install --home "C:\\Brains\\Holocore Home"` installs a Windows logon trigger; it polls registered projects every 30 seconds, reconciles changed projects, and regenerates `HoloCore Obsidian Vault`. The watcher reads project sources and Code Map inputs only, so its generated Markdown cannot trigger a refresh loop. `holocore watch --uninstall` removes the trigger.
 
 ## Automatic memory and agent activity
 
@@ -85,10 +85,12 @@ Hooks are installed automatically but require client trust once:
 Open PowerShell and run:
 
 ```powershell
-irm https://raw.githubusercontent.com/HassanMahomed/HoloCore/main/install.ps1 | iex
+irm https://github.com/HassanMahomed/HoloCore/releases/latest/download/install.ps1 | iex
 ```
 
-The installer downloads the release asset from GitHub, verifies its SHA-256 checksum when available, creates HoloCore Home, adds `holocore` to the user PATH, detects supported AI clients, and asks which detected clients to connect. No Python installation is required. On upgrades, HoloCore scans again so clients installed later can be connected to every registered project.
+The release includes a checksummed, standalone `holocore-setup-windows-x64.exe`. Double-click it to install the embedded HoloCore engine and open **HoloCore Setup** as a normal Windows desktop window—no terminal, browser, or Python installation required. It lets you choose HoloCore Home, select a first project and optional features, review detected AI clients and Ollama models, and inspect the exact resolved paths before applying anything. A Start menu shortcut lets you reopen setup later. The PowerShell one-liner remains available for unattended and managed deployment.
+
+![HoloCore native Windows setup application](docs/assets/holocore-native-setup.png)
 
 The downloadable Windows executable and checksum are also available on the [GitHub Releases page](https://github.com/HassanMahomed/HoloCore/releases). See the [Windows installation guide](docs/windows-installation.md) for unattended options, upgrades, and removal.
 
@@ -161,14 +163,14 @@ holocore sync-all
 holocore update
 ```
 
-`sync-all` reconciles generated integration files and refreshes Atlas for every registered World. `update` upgrades the installed CLI and then performs the same all-World reconciliation. For a large installation, update the CLI first and reconcile separately:
+`sync-all` reconciles generated integration files and refreshes the Code Map for every registered project. `update` upgrades the installed CLI and then performs the same all-project reconciliation. For a large installation, update the CLI first and reconcile separately:
 
 ```powershell
 holocore update --no-sync
 holocore sync-all
 ```
 
-The second command can take time because it reads each registered World's source files and rebuilds its Atlas. Press `Ctrl+C` to stop a refresh safely; the installed CLI remains updated. Close active Claude/Codex MCP sessions before updating if Windows reports that `holocore.exe` is in use. Missing project folders are reported without stopping other Worlds.
+The second command can take time because it reads each registered project's source files and rebuilds its Code Map. Press `Ctrl+C` to stop a refresh safely; the installed CLI remains updated. Close active Claude/Codex MCP sessions before updating if Windows reports that `holocore.exe` is in use. Missing project folders are reported without stopping other projects.
 
 Optional automatic updates are deliberately session-driven, not scheduled:
 
@@ -209,6 +211,14 @@ The current release includes code-map clusters, audits, relationship paths and e
 - [Folder naming and in-place migration plan](docs/folder-layout-migration-plan.md)
 - [Version 0.12 release notes](docs/v0.12.md)
 - [Version 0.13 release notes](docs/v0.13.md)
+- [Version 0.14 release notes](docs/v0.14.md)
+- [Version 0.15 release notes](docs/v0.15.md)
+- [Version 0.16 release notes](docs/v0.16.md)
+- [Version 0.17 release notes](docs/v0.17.md)
+- [Version 0.18 release notes](docs/v0.18.md)
+- [Version 0.19 release notes](docs/v0.19.md)
+- [Version 1.0 release and verification](docs/v1.0.md)
+- [Release roadmap](docs/roadmap.md)
 - [What is new in v0.10](docs/v0.10.md)
 - [What is new in v0.9](docs/v0.9.md)
 - [Prerequisites and optional graph tools](docs/prerequisites.md)
@@ -225,9 +235,9 @@ The current release includes code-map clusters, audits, relationship paths and e
 
 ## Safety model
 
-HoloCore is local-first. Archive Markdown stays in the user-selected Home. Atlas, Animus, transcript cursors, and raw chats stay inside each project. Setup and reconciliation merge only HoloCore-owned integration entries. Capture hooks are non-blocking and should never prevent the parent AI client from ending a session.
+HoloCore is local-first. Knowledge Markdown, project Code Maps, Memories, transcript cursors, and raw chats stay in the user-selected Home. Setup and reconciliation merge only HoloCore-owned integration entries. Capture hooks are non-blocking and should never prevent the parent AI client from ending a session.
 
-Raw chats and Animus can contain sensitive information. HoloCore adds their paths to the project `.gitignore`; protect and back them up according to your own data policy.
+Raw chats and Memories can contain sensitive information. HoloCore excludes their paths from source control; protect and back them up according to your own data policy.
 
 ## License and development
 

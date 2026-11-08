@@ -12,9 +12,8 @@ from .engine import HoloCoreEngine
 from .home import HomeManager
 from .layout import format_paths, world_paths
 from .lifecycle import installation_check, sync_all, uninstall_tool, update_install
-from .animus import Animus
-from .animus_mining import AnimusMiner, MiningOptions
-from .animus_retrieval import AnimusRetriever
+from .memories import MemoryStore
+from .memory_collection import CollectionOptions, MemoryCollector
 from .archive_source import sync_archive_source
 from .archive_promote import promote_sources
 from . import __version__
@@ -117,12 +116,15 @@ def _format_status(value: dict) -> str:
     ready = value["readiness"]["ready"]
     claude = value["integrations"]["claude"]
     codex = value["integrations"]["codex"]
+    model = value["local_model"]
+    model_text = model["mode"] if not model.get("model") else f"{model['mode']} · {model['model']}"
     return f"""HoloCore {'is ready' if ready else 'needs attention'}.
 
 Project:         {value['world']}
 Knowledge:       {value['paths']['archive']}
 Code map:        {value['paths']['atlas_json']} ({'fresh' if value['atlas'].get('fresh') else 'missing or stale'})
 Memories:        {value['paths']['memory_shards']}
+Local model:     {model_text}
 
 AI connections
   Claude Code: {'connected' if claude['connected'] else claude['detail']} · capture {'on' if claude['capture'] else 'off'} · {claude['slash_commands']} slash commands · {claude['skills']} skills
@@ -173,7 +175,22 @@ def main() -> int:
     console.add_argument("--port", type=int, default=0, help="Local port (0 chooses a free port)")
     console.add_argument("--no-open", action="store_true", help="Print the URL without opening a browser")
     console.add_argument("--export", action="store_true", help="Write Home\\Console\\console.html and exit")
+    setup_ui = sub.add_parser("setup-ui", help="Open the local first-run setup wizard")
+    setup_ui.add_argument("--home", help="Initial HoloCore Home folder shown in the wizard")
+    setup_ui.add_argument("--project", help="Initial project folder shown in the wizard")
+    setup_ui.add_argument("--port", type=int, default=0, help="Local port (0 chooses a free port)")
+    setup_ui.add_argument("--no-open", action="store_true", help="Print the URL without opening a browser")
     sub.add_parser("doctor")
+    models = sub.add_parser("models", help="Discover, configure, or inspect optional local models")
+    models_sub = models.add_subparsers(dest="models_command", required=True)
+    models_discover = models_sub.add_parser("discover", help="Find supported model runtimes on loopback")
+    models_discover.add_argument("--base-url", help="Optional loopback Ollama origin")
+    models_sub.add_parser("status", help="Show the active extraction mode and local-model health")
+    models_configure = models_sub.add_parser("configure", help="Select one installed local model for HoloCore Home")
+    models_configure.add_argument("--provider", choices=("ollama",), required=True)
+    models_configure.add_argument("--model", required=True)
+    models_configure.add_argument("--base-url", help="Optional loopback Ollama origin")
+    models_sub.add_parser("clear", help="Remove the Home-level model selection and use deterministic extraction")
     home_command = sub.add_parser("home", help="Show or select the shared HoloCore Home")
     home_command.add_argument("path", nargs="?")
     home_command.add_argument("--path", dest="home_path", help="Shared HoloCore Home directory (alternative to the positional path)")
@@ -191,6 +208,7 @@ def main() -> int:
     sync_all_command = sub.add_parser("sync-all", help="Reconcile every registered Project")
     sync_all_command.add_argument("--detected", action="store_true", help="Connect only AI clients detected on this computer")
     sync_all_command.add_argument("-y", "--yes", action="store_true", help="Accept all detected AI clients without prompting")
+    sync_all_command.add_argument("--regenerate", action="store_true", help="Replace generated legacy command names with the current plain-language interfaces")
     update = sub.add_parser("update", help="Update HoloCore and reconcile every World")
     update.add_argument("--no-sync", action="store_true", help="Only update the CLI; skip the potentially lengthy World/Atlas reconciliation")
     update.add_argument("-y", "--yes", action="store_true", help="Connect every detected AI client without prompting")
@@ -204,26 +222,27 @@ def main() -> int:
     cleanup = sub.add_parser("cleanup", help="Safely remove legacy HoloCore files from this project")
     cleanup.add_argument("--apply", action="store_true", help="Actually remove verified legacy artifacts")
     search = sub.add_parser("search"); search.add_argument("query"); search.add_argument("--world")
-    sub.add_parser("atlas-refresh", help="Refresh the project Code Map")
-    sub.add_parser("atlas-html", help="Generate the interactive Code Map view"); sub.add_parser("atlas-view", help="Generate and open the Code Map view")
-    atlas_search = sub.add_parser("atlas-search"); atlas_search.add_argument("query")
-    atlas_explain = sub.add_parser("atlas-explain"); atlas_explain.add_argument("query")
-    atlas_path = sub.add_parser("atlas-path"); atlas_path.add_argument("source"); atlas_path.add_argument("target"); atlas_path.add_argument("--max-depth", type=int)
-    atlas_affected = sub.add_parser("atlas-affected"); atlas_affected.add_argument("query"); atlas_affected.add_argument("--depth", type=int, default=2)
-    atlas_neighborhood = sub.add_parser("atlas-neighborhood"); atlas_neighborhood.add_argument("query"); atlas_neighborhood.add_argument("--depth", type=int, default=1)
-    atlas_export = sub.add_parser("atlas-export"); atlas_export.add_argument("output"); atlas_export.add_argument("--format", action="append", dest="formats")
-    sub.add_parser("atlas-audit")
-    atlas_constellations = sub.add_parser("atlas-constellations", help="List related Code Map clusters"); atlas_constellations.add_argument("--min-size", type=int, default=2)
-    mine = sub.add_parser("mine"); mine.add_argument("path", nargs="?", default="."); mine.add_argument("--sector", default="project"); mine.add_argument("--mode", choices=("files", "conversations", "git"), default="files"); mine.add_argument("--ignore", action="append", default=[])
-    sync = sub.add_parser("animus-sync"); sync.add_argument("--sector", default="project"); sync.add_argument("--mode", choices=("files", "conversations", "git"), default="files")
-    checkpoint = sub.add_parser("animus-checkpoint"); checkpoint.add_argument("--sector", default="project"); checkpoint.add_argument("--mode", choices=("files", "conversations", "git"), default="files"); checkpoint.add_argument("--source", default="")
-    diary = sub.add_parser("diary"); diary.add_argument("content"); diary.add_argument("--title", default=""); diary.add_argument("--sector", default="project"); diary.add_argument("--kind", default="episode"); diary.add_argument("--source", default="cli")
-    timeline = sub.add_parser("timeline"); timeline.add_argument("--sector", default=None); timeline.add_argument("--limit", type=int, default=100)
-    consolidate = sub.add_parser("consolidate"); consolidate.add_argument("--sector", default=None)
-    export = sub.add_parser("animus-export"); export.add_argument("--sector", default=None); export.add_argument("--limit", type=int, default=1000)
-    decks = sub.add_parser("animus-decks", aliases=["animus-rooms"]); decks.add_argument("--world", default=None)
-    signal = sub.add_parser("animus-signal", aliases=["animus-entity"]); signal.add_argument("name"); signal.add_argument("relation"); signal.add_argument("value"); signal.add_argument("--kind", default="concept"); signal.add_argument("--deck", "--room", dest="room"); signal.add_argument("--source", default="cli")
-    chronicle = sub.add_parser("animus-chronicle", aliases=["animus-entity-timeline"]); chronicle.add_argument("--signal", "--entity", dest="entity"); chronicle.add_argument("--deck", "--room", dest="room"); chronicle.add_argument("--limit", type=int, default=100)
+    research = sub.add_parser("research", help="Build a scoped research evidence brief"); research.add_argument("question"); research.add_argument("--sector")
+    architecture = sub.add_parser("architecture", help="Build a scoped architecture evidence brief"); architecture.add_argument("question"); architecture.add_argument("--sector")
+    sub.add_parser("code-map-refresh", aliases=["atlas-refresh"], help="Refresh the project Code Map")
+    sub.add_parser("code-map-html", aliases=["atlas-html"], help="Generate the interactive Code Map view"); sub.add_parser("code-map-view", aliases=["atlas-view"], help="Generate and open the Code Map view")
+    atlas_search = sub.add_parser("code-map-search", aliases=["atlas-search"]); atlas_search.add_argument("query")
+    atlas_explain = sub.add_parser("code-map-explain", aliases=["atlas-explain"]); atlas_explain.add_argument("query")
+    atlas_path = sub.add_parser("code-map-path", aliases=["atlas-path"]); atlas_path.add_argument("source"); atlas_path.add_argument("target"); atlas_path.add_argument("--max-depth", type=int)
+    atlas_affected = sub.add_parser("code-map-affected", aliases=["atlas-affected"]); atlas_affected.add_argument("query"); atlas_affected.add_argument("--depth", type=int, default=2)
+    atlas_neighborhood = sub.add_parser("code-map-neighborhood", aliases=["atlas-neighborhood"]); atlas_neighborhood.add_argument("query"); atlas_neighborhood.add_argument("--depth", type=int, default=1)
+    atlas_export = sub.add_parser("code-map-export", aliases=["atlas-export"]); atlas_export.add_argument("output"); atlas_export.add_argument("--format", action="append", dest="formats")
+    sub.add_parser("code-map-audit", aliases=["atlas-audit"])
+    atlas_constellations = sub.add_parser("code-map-groups", aliases=["atlas-constellations"], help="List related Code Map groups"); atlas_constellations.add_argument("--min-size", type=int, default=2)
+    mine = sub.add_parser("memory-collect", aliases=["mine", "animus-sync"]); mine.add_argument("path", nargs="?", default="."); mine.add_argument("--sector", default="project"); mine.add_argument("--mode", choices=("files", "conversations", "git"), default="files"); mine.add_argument("--ignore", action="append", default=[])
+    checkpoint = sub.add_parser("memory-checkpoint", aliases=["animus-checkpoint"]); checkpoint.add_argument("--sector", default="project"); checkpoint.add_argument("--mode", choices=("files", "conversations", "git"), default="files"); checkpoint.add_argument("--source", default="")
+    diary = sub.add_parser("memory-event", aliases=["diary"]); diary.add_argument("content"); diary.add_argument("--title", default=""); diary.add_argument("--sector", default="project"); diary.add_argument("--kind", default="episode"); diary.add_argument("--source", default="cli")
+    timeline = sub.add_parser("memory-timeline", aliases=["timeline"]); timeline.add_argument("--sector", default=None); timeline.add_argument("--limit", type=int, default=100)
+    consolidate = sub.add_parser("memory-consolidate", aliases=["consolidate"]); consolidate.add_argument("--sector", default=None)
+    export = sub.add_parser("memory-export", aliases=["animus-export"]); export.add_argument("--sector", default=None); export.add_argument("--limit", type=int, default=1000)
+    decks = sub.add_parser("memory-groups", aliases=["animus-decks", "animus-rooms"]); decks.add_argument("--world", default=None)
+    signal = sub.add_parser("memory-track", aliases=["animus-signal", "animus-entity"]); signal.add_argument("name"); signal.add_argument("relation"); signal.add_argument("value"); signal.add_argument("--kind", default="concept"); signal.add_argument("--group", "--deck", "--room", dest="room"); signal.add_argument("--source", default="cli")
+    chronicle = sub.add_parser("memory-history", aliases=["animus-chronicle", "animus-entity-timeline"]); chronicle.add_argument("--item", "--signal", "--entity", dest="entity"); chronicle.add_argument("--group", "--deck", "--room", dest="room"); chronicle.add_argument("--limit", type=int, default=100)
     remember = sub.add_parser("remember"); remember.add_argument("content"); remember.add_argument("--sector", default="general"); remember.add_argument("--source", default="")
     recall = sub.add_parser("recall"); recall.add_argument("query"); recall.add_argument("--sector")
     ingest = sub.add_parser("ingest-chat"); ingest.add_argument("file"); ingest.add_argument("--sector", default="conversations"); ingest.add_argument("--instructions", default="")
@@ -289,6 +308,18 @@ def main() -> int:
     capture_command = sub.add_parser("capture-hook", help=argparse.SUPPRESS); capture_command.add_argument("--client", choices=("claude", "codex", "cursor", "gemini", "opencode"), required=True)
     sub.add_parser("mcp", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    compatibility_commands = {
+        "atlas-refresh": "code-map-refresh", "atlas-html": "code-map-html", "atlas-view": "code-map-view",
+        "atlas-search": "code-map-search", "atlas-explain": "code-map-explain", "atlas-path": "code-map-path",
+        "atlas-affected": "code-map-affected", "atlas-neighborhood": "code-map-neighborhood",
+        "atlas-export": "code-map-export", "atlas-audit": "code-map-audit", "atlas-constellations": "code-map-groups",
+        "mine": "memory-collect", "animus-sync": "memory-collect", "animus-checkpoint": "memory-checkpoint",
+        "diary": "memory-event", "timeline": "memory-timeline", "consolidate": "memory-consolidate",
+        "animus-export": "memory-export", "animus-decks": "memory-groups", "animus-rooms": "memory-groups",
+        "animus-signal": "memory-track", "animus-entity": "memory-track",
+        "animus-chronicle": "memory-history", "animus-entity-timeline": "memory-history",
+    }
+    args.command = compatibility_commands.get(args.command, args.command)
     root = Path(getattr(args, "path", None) or args.root).resolve() if args.command in {"setup", "init", "connect"} else Path(args.root).resolve()
 
     if args.command == "cleanup":
@@ -309,6 +340,31 @@ def main() -> int:
     if args.command == "mcp":
         from .mcp_server import main as mcp_main
         return mcp_main()
+    if args.command == "models":
+        from .local_models import LocalModelManager
+        config = Config.load(root=root)
+        manager = LocalModelManager(config.home or HomeManager().home)
+        try:
+            if args.models_command == "discover":
+                value = manager.discover(args.base_url)
+            elif args.models_command == "status":
+                value = manager.status(config.llm)
+            elif args.models_command == "configure":
+                value = manager.configure(args.provider, args.model, base_url=args.base_url)
+            else:
+                value = manager.clear()
+        except ValueError as exc:
+            parser.error(str(exc))
+        if args.json:
+            print(json.dumps(value, indent=2, ensure_ascii=False, default=str))
+        elif args.models_command == "discover":
+            candidate = value["candidates"][0]
+            names = ", ".join(item["name"] for item in candidate["models"]) or "none"
+            print(f"Ollama: {'available' if candidate['reachable'] else 'not found'}\nInstalled models: {names}\nFallback: deterministic")
+        else:
+            status = value.get("status", value)
+            print(f"Local model: {status['mode']}\nModel: {status.get('model') or 'none'}\nFallback: {status['fallback']}")
+        return 0
     if args.command == "detect-clients":
         from .install import detect_installed_clients
         value = detect_installed_clients()
@@ -335,6 +391,12 @@ def main() -> int:
             print(export_console(root))
             return 0
         return serve_console(root, port=args.port, open_browser=not args.no_open)
+    if args.command == "setup-ui":
+        from .setup_wizard import serve_setup_wizard
+        return serve_setup_wizard(
+            home=args.home, project=args.project, port=args.port,
+            open_browser=not args.no_open,
+        )
     elif args.command == "paths":
         value = world_paths(root, Config.load(root=root))
         output = json.dumps(value, indent=2) if args.json else format_paths(value)
@@ -382,8 +444,11 @@ def main() -> int:
         return 0
     if args.command == "sync-all":
         platforms = _selected_platforms(None, args.yes or args.json) if args.detected else None
-        value = sync_all(platforms=platforms)
-        print(json.dumps(value, indent=2, default=str) if args.json else f"Reconciled {value['updated']} of {value['count']} Worlds ({value['failed']} failed).")
+        value = sync_all(platforms=platforms, regenerate=args.regenerate)
+        print(json.dumps(value, indent=2, default=str) if args.json else (
+            f"Reconciled {value['updated']} of {value['count']} Projects ({value['failed']} failed)."
+            + (f" Regenerated plain-language integrations and removed {len(value['regeneration']['legacy_interfaces_removed'])} legacy generated files." if args.regenerate else "")
+        ))
         return 0
     if args.command == "update":
         value = update_install(reconcile=False)
@@ -423,7 +488,12 @@ def main() -> int:
         return 0
     if args.command == "uninstall":
         value = uninstall_tool()
-        print(json.dumps(value, indent=2) if args.json else "HoloCore CLI uninstalled. Project and Home data were preserved.")
+        message = (
+            "HoloCore native uninstall will complete after this process exits. Project and Home data will be preserved."
+            if value.get("uninstall_queued")
+            else "HoloCore CLI uninstalled. Project and Home data were preserved."
+        )
+        print(json.dumps(value, indent=2) if args.json else message)
         return 0
     if args.command in {"open-archive", "open-knowledge"}:
         config = Config.load(root=root)
@@ -455,57 +525,60 @@ def main() -> int:
     elif args.command == "connect": value = engine.connect(platforms=_selected_platforms(args.platform, args.yes or args.json), home=_selected_home(args.home))
     elif args.command in {"status", "doctor"}: value = engine.status()
     elif args.command == "search": value = [r.__dict__ for r in engine.search(args.query, args.world)]
-    elif args.command == "atlas-refresh": value = engine.refresh()
-    elif args.command in {"atlas-html", "atlas-view"}:
+    elif args.command in {"research", "architecture"}:
+        from .guided_workflows import run_guided_workflow
+        value = run_guided_workflow(root, kind=args.command, question=args.question, sector=args.sector)
+    elif args.command == "code-map-refresh": value = engine.refresh()
+    elif args.command in {"code-map-html", "code-map-view"}:
         atlas = engine.ensure_atlas()
         html = Path(atlas["html"])
-        if args.command == "atlas-view":
+        if args.command == "code-map-view":
             import webbrowser
             webbrowser.open(html.resolve().as_uri())
-        value = {**atlas, "html": str(html), "opened": args.command == "atlas-view"}
-    elif args.command == "atlas-search": value = engine.router.atlas.search(args.query)
-    elif args.command == "atlas-explain": value = engine.router.atlas.explain(args.query)
-    elif args.command == "atlas-path": value = engine.router.atlas.shortest_path(args.source, args.target, max_depth=args.max_depth)
-    elif args.command == "atlas-affected": value = engine.router.atlas.affected(args.query, depth=args.depth)
-    elif args.command == "atlas-neighborhood": value = engine.router.atlas.neighborhood(args.query, depth=args.depth)
-    elif args.command == "atlas-audit": value = engine.router.atlas.audit()
-    elif args.command == "atlas-constellations": value = engine.router.atlas.constellations(min_size=args.min_size)
-    elif args.command == "atlas-export":
+        value = {**atlas, "html": str(html), "opened": args.command == "code-map-view"}
+    elif args.command == "code-map-search": value = engine.router.atlas.search(args.query)
+    elif args.command == "code-map-explain": value = engine.router.atlas.explain(args.query)
+    elif args.command == "code-map-path": value = engine.router.atlas.shortest_path(args.source, args.target, max_depth=args.max_depth)
+    elif args.command == "code-map-affected": value = engine.router.atlas.affected(args.query, depth=args.depth)
+    elif args.command == "code-map-neighborhood": value = engine.router.atlas.neighborhood(args.query, depth=args.depth)
+    elif args.command == "code-map-audit": value = engine.router.atlas.audit()
+    elif args.command == "code-map-groups": value = engine.router.atlas.constellations(min_size=args.min_size)
+    elif args.command == "code-map-export":
         from .atlas_exports import export_atlas
         value = export_atlas(engine.router.atlas, args.output, args.formats)
-    elif args.command in {"mine", "animus-sync", "animus-checkpoint", "diary", "timeline", "consolidate", "animus-export", "animus-decks", "animus-rooms", "animus-signal", "animus-entity", "animus-chronicle", "animus-entity-timeline"}:
-        config = Config.load(root=root); animus = Animus(config.animus_path); world = config.world_id or root.name
-        animus.create_world(world, root.name, {"root": str(root)})
-        if getattr(args, "sector", None): animus.create_sector(world, args.sector)
-        if args.command in {"animus-decks", "animus-rooms"}: value = [deck.__dict__ for deck in animus.decks(world=world)]
-        elif args.command in {"animus-signal", "animus-entity"}: value = animus.record_signal_chronicle(args.name, args.relation, args.value, world=world, kind=args.kind, room=args.room, source_ref=args.source).__dict__
-        elif args.command in {"animus-chronicle", "animus-entity-timeline"}: value = [event.__dict__ for event in animus.signal_chronicle(world=world, entity=args.entity, room=args.room, limit=args.limit)]
-        elif args.command in {"mine", "animus-sync"}:
-            path = Path(args.path if args.command == "mine" else root).resolve()
-            value = AnimusMiner(animus).mine(MiningOptions(mode=args.mode, world=world, sector=args.sector, root=path, ignore=tuple(args.ignore) or MiningOptions().ignore))
-        elif args.command == "animus-checkpoint":
-            source = args.source or str(root.resolve()); value = animus.get_checkpoint(world=world, sector=args.sector, mode=args.mode, source_ref=source)
-        elif args.command == "diary": value = animus.record_diary(args.content, world=world, sector=args.sector, title=args.title, kind=args.kind, source_ref=args.source)
-        elif args.command == "timeline": value = animus.timeline(world=world, sector=args.sector, limit=args.limit)
-        elif args.command == "consolidate": value = animus.consolidate(world=world, sector=args.sector)
+    elif args.command in {"memory-collect", "memory-checkpoint", "memory-event", "memory-timeline", "memory-consolidate", "memory-export", "memory-groups", "memory-track", "memory-history"}:
+        config = Config.load(root=root); memories = MemoryStore(config.memory_path); world = config.world_id or root.name
+        memories.create_world(world, root.name, {"root": str(root)})
+        if getattr(args, "sector", None): memories.create_sector(world, args.sector)
+        if args.command == "memory-groups": value = [deck.__dict__ for deck in memories.decks(world=world)]
+        elif args.command == "memory-track": value = memories.record_signal_chronicle(args.name, args.relation, args.value, world=world, kind=args.kind, room=args.room, source_ref=args.source).__dict__
+        elif args.command == "memory-history": value = [event.__dict__ for event in memories.signal_chronicle(world=world, entity=args.entity, room=args.room, limit=args.limit)]
+        elif args.command == "memory-collect":
+            path = Path(args.path).resolve()
+            value = MemoryCollector(memories).collect(CollectionOptions(mode=args.mode, world=world, sector=args.sector, root=path, ignore=tuple(args.ignore) or CollectionOptions().ignore))
+        elif args.command == "memory-checkpoint":
+            source = args.source or str(root.resolve()); value = memories.get_checkpoint(world=world, sector=args.sector, mode=args.mode, source_ref=source)
+        elif args.command == "memory-event": value = memories.record_diary(args.content, world=world, sector=args.sector, title=args.title, kind=args.kind, source_ref=args.source)
+        elif args.command == "memory-timeline": value = memories.timeline(world=world, sector=args.sector, limit=args.limit)
+        elif args.command == "memory-consolidate": value = memories.consolidate(world=world, sector=args.sector)
         else:
             diary = [{"id": row.id, "world_id": row.world_id, "sector_id": row.sector_id,
                       "occurred_at": row.occurred_at, "title": row.title, "content": row.content,
                       "kind": row.kind, "metadata": dict(row.metadata),
                       "provenance": [p.__dict__ for p in row.provenance]}
-                     for row in animus.timeline(world=world, sector=args.sector, limit=args.limit)]
+                     for row in memories.timeline(world=world, sector=args.sector, limit=args.limit)]
             # Export both the episodic timeline and distilled memory so an AI
-            # client can consume one scoped Animus payload.
+            # client can consume one scoped Memories payload.
             shards = [{"id": row.id, "world_id": row.world_id, "sector_id": row.sector_id,
                        "content": row.content, "route_hint": row.route_hint,
                        "metadata": dict(row.metadata), "created_at": row.created_at,
                        "updated_at": row.updated_at, "kind": "memory_shard"}
-                      for row in animus.shards(world=world, sector=args.sector)][-args.limit:]
+                      for row in memories.shards(world=world, sector=args.sector)][-args.limit:]
             value = diary + shards
     elif args.command == "remember": value = engine.remember(args.content, args.sector, args.source)
     elif args.command == "recall":
         engine.router.ensure_memory_scope()
-        value = [r.__dict__ for r in engine.router.animus.search(args.query, world=engine.router.world_id, sector=args.sector)]
+        value = [r.__dict__ for r in engine.router.memories.search(args.query, world=engine.router.world_id, sector=args.sector)]
     elif args.command == "ingest-chat":
         from .conversation_import import ConversationImporter
         imported = ConversationImporter().import_file(args.file)
@@ -540,10 +613,10 @@ def main() -> int:
         if args.memory_command == "add":
             value = engine.remember(args.content, args.sector, args.source)
         else:
-            engine.router.ensure_memory_scope(); value = [r.__dict__ for r in engine.router.animus.search(args.query, world=engine.router.world_id, sector=args.sector)]
+            engine.router.ensure_memory_scope(); value = [r.__dict__ for r in engine.router.memories.search(args.query, world=engine.router.world_id, sector=args.sector)]
     elif args.command in {"activity", "handoff", "handoffs", "runs", "activity-status"}:
         from .activity import ActivityLedger
-        config = Config.load(root=root); ledger = ActivityLedger(config.animus_path); project_id = config.world_id or root.name
+        config = Config.load(root=root); ledger = ActivityLedger(config.memory_path); project_id = config.world_id or root.name
         if args.command == "activity-status": value = ledger.status(project_id=project_id)
         elif args.command == "handoff": value = ledger.handoff(project_id=project_id, run_id=args.run_id, action_limit=args.actions, item_limit=args.items)
         elif args.command == "handoffs":

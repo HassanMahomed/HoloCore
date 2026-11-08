@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from .animus import Animus, MemoryShard
+from .memories import MemoryShard, MemoryStore
 from .llm import LocalMemoryProvider, MemoryProvider
 
 
@@ -46,11 +46,13 @@ class RefinementResult:
     extraction: MemoryExtraction
     shards: tuple[MemoryShard, ...]
     audit_path: Path
+    provider: str = "deterministic"
+    fallback_reason: str | None = None
 
 
 class MemoryRefinementPipeline:
-    def __init__(self, animus: Animus, audit_dir: str | Path, provider: MemoryProvider | None = None):
-        self.animus = animus
+    def __init__(self, memories: MemoryStore, audit_dir: str | Path, provider: MemoryProvider | None = None):
+        self.memories = memories
         self.audit_dir = Path(audit_dir)
         self.provider = provider or LocalMemoryProvider()
 
@@ -83,17 +85,19 @@ class MemoryRefinementPipeline:
             raise ValueError("source_ref must be non-empty")
         audit_path = self._audit(messages, source_ref)
         extraction = MemoryExtraction.from_mapping(self.provider.extract(messages, instructions=instructions))
+        provider_name = str(getattr(self.provider, "last_used", getattr(self.provider, "name", type(self.provider).__name__.casefold())))
+        fallback_reason = getattr(self.provider, "last_error", None)
         records: list[tuple[str, str]] = []
         if extraction.summary:
             records.append(("summary", extraction.summary))
         for kind in _KINDS:
             records.extend((kind[:-1] if kind != "entities" else "entity", item) for item in getattr(extraction, kind))
-        shards = tuple(self.animus.ingest(
+        shards = tuple(self.memories.ingest(
             content, world=world, sector=sector,
             source_ref=f"{source_ref}#distilled/{kind}/{index}",
             chunk_index=0, route_hint="distilled-memory",
             transformations=("memory-refinement",), privacy=privacy,
-            metadata={"memory_kind": kind, "raw_audit": str(audit_path)},
+            metadata={"memory_kind": kind, "raw_audit": str(audit_path), "provider": provider_name, "fallback_reason": fallback_reason},
             source_metadata={"raw_source_ref": source_ref},
         ) for index, (kind, content) in enumerate(records))
         transcript = "\n\n".join(
@@ -102,16 +106,16 @@ class MemoryRefinementPipeline:
         diary_content = extraction.summary or transcript
         if extraction.summary and transcript:
             diary_content = f"{extraction.summary}\n\nTranscript:\n{transcript}"
-        self.animus.record_diary(
+        self.memories.record_diary(
             diary_content,
             world=world,
             sector=sector,
             title=f"Conversation: {Path(source_ref).name or 'chat'}",
             kind="conversation",
-            metadata={"message_count": len(messages), "raw_audit": str(audit_path)},
+            metadata={"message_count": len(messages), "raw_audit": str(audit_path), "provider": provider_name, "fallback_reason": fallback_reason},
             source_ref=source_ref,
         )
-        return RefinementResult(extraction, shards, audit_path)
+        return RefinementResult(extraction, shards, audit_path, provider_name, fallback_reason)
 
 
 MemoryPipeline = MemoryRefinementPipeline

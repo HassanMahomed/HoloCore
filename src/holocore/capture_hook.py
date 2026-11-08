@@ -56,7 +56,7 @@ def run(payload: Mapping[str, Any], client: str) -> dict[str, Any]:
     config = Config.load(root=root)
     project_id = config.world_id or root.name
     try:
-        activity = ActivityLedger(config.animus_path).record_hook(
+        activity = ActivityLedger(config.memory_path).record_hook(
             payload, client=client, project_id=project_id
         )
     except Exception as exc:  # Activity capture must never block the client.

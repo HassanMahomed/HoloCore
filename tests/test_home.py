@@ -164,7 +164,7 @@ def test_curated_source_sync_targets_second_brain_world_not_shared_archive(tmp_p
     assert not (home / "Archive" / "Shared").exists()
 
 
-def test_two_worlds_share_one_home_and_animus_without_private_archive_leakage(
+def test_two_projects_share_one_home_and_memories_without_private_knowledge_leakage(
     tmp_path: Path, isolated_holocore_home: Path
 ) -> None:
     alpha = tmp_path / "Alpha World"
@@ -177,7 +177,7 @@ def test_two_worlds_share_one_home_and_animus_without_private_archive_leakage(
     assert alpha_config.home == beta_config.home == isolated_holocore_home
     assert alpha_config.world_id != beta_config.world_id
     assert alpha_config.vault != beta_config.vault
-    assert alpha_config.animus_path == beta_config.animus_path == isolated_holocore_home / "Memories" / "animus.db"
+    assert alpha_config.memory_path == beta_config.memory_path == isolated_holocore_home / "Memories" / "animus.db"
     assert alpha_config.raw_chats_path == isolated_holocore_home / "Memories" / "ChatHistory" / "Alpha World"
     assert beta_config.raw_chats_path == isolated_holocore_home / "Memories" / "ChatHistory" / "Beta World"
     assert not (alpha / ".holocore").exists()
@@ -195,6 +195,6 @@ def test_two_worlds_share_one_home_and_animus_without_private_archive_leakage(
 
     alpha_engine.remember("alphaepisodicneedle", "project")
     beta_engine.remember("betaepisodicneedle", "project")
-    assert beta_engine.router.animus.search(
+    assert beta_engine.router.memories.search(
         "alphaepisodicneedle", world=beta_engine.router.world_id, sector="project"
     ) == []

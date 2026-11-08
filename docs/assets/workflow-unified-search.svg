@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
-  <title id="title">HoloCore check-first Atlas, Archive, Animus, and exact-source route</title>
-  <desc id="desc">HoloCore checks the active World and primary graphify-out Atlas outputs, searches Atlas once, searches the active World and Shared Archive once, optionally recalls project-local Animus once, and returns exact sources without recursion.</desc>
+  <title id="title">HoloCore check-first Code Map, Knowledge, Memories, and exact-source route</title>
+  <desc id="desc">HoloCore checks the active project and Code Map, searches project and Shared Knowledge once, optionally recalls scoped Memories once, and returns exact sources without recursion.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#102744"/></linearGradient>
     <filter id="s"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".28"/></filter>
@@ -9,7 +9,7 @@
   </defs>
   <rect width="1200" height="675" fill="url(#bg)"/>
   <text x="60" y="58" class="f t">Check first, then retrieve in one direction</text>
-  <text x="60" y="87" class="f p">Active World Atlas → active World + Shared Archive → Animus only when needed → exact sources</text>
+  <text x="60" y="87" class="f p">Project Code Map → project + Shared Knowledge → Memories only when needed → exact sources</text>
 
   <g filter="url(#s)">
     <rect x="45" y="135" width="170" height="120" rx="16" fill="#173456" stroke="#38bdf8"/>
@@ -29,7 +29,7 @@
   <path d="M485 195H520" class="l"/>
   <g filter="url(#s)">
     <rect x="530" y="120" width="225" height="150" rx="16" fill="#25325f" stroke="#818cf8"/>
-    <text x="642" y="158" text-anchor="middle" class="f h">2. Atlas first</text>
+    <text x="642" y="158" text-anchor="middle" class="f h">2. Code Map first</text>
     <text x="642" y="188" text-anchor="middle" class="f p">files + symbols</text>
     <text x="642" y="216" text-anchor="middle" class="f p">paths + relationships</text>
     <text x="642" y="244" text-anchor="middle" class="f n">one local graph lookup</text>
@@ -37,7 +37,7 @@
   <path d="M755 195H790" class="l"/>
   <g filter="url(#s)">
     <rect x="800" y="110" width="355" height="170" rx="16" fill="#113b39" stroke="#2dd4bf"/>
-    <text x="977" y="148" text-anchor="middle" class="f h">3. Archive second</text>
+    <text x="977" y="148" text-anchor="middle" class="f h">3. Knowledge second</text>
     <rect x="825" y="171" width="185" height="75" rx="11" fill="#173f3c" stroke="#5eead4"/>
     <text x="917" y="200" text-anchor="middle" class="f p">Worlds/&lt;world-id&gt;</text>
     <text x="917" y="225" text-anchor="middle" class="f n">project knowledge</text>
@@ -50,7 +50,7 @@
   <path d="M977 280V335H760V365" class="l"/>
   <g filter="url(#s)">
     <rect x="620" y="375" width="280" height="140" rx="16" fill="#4a283e" stroke="#f472b6"/>
-    <text x="760" y="413" text-anchor="middle" class="f h">4. Animus third</text>
+    <text x="760" y="413" text-anchor="middle" class="f h">4. Memories third</text>
     <text x="760" y="443" text-anchor="middle" class="f p">only when history matters</text>
     <text x="760" y="470" text-anchor="middle" class="f n">previous work • errors • chats</text>
     <text x="760" y="493" text-anchor="middle" class="f n">one project-local SQLite lookup</text>
@@ -66,7 +66,7 @@
   <path d="M280 445H205V550H410" class="l"/>
 
   <text x="1000" y="390" text-anchor="middle" class="f p">History not relevant?</text>
-  <text x="1000" y="415" text-anchor="middle" class="f n">skip Animus</text>
+  <text x="1000" y="415" text-anchor="middle" class="f n">skip Memories</text>
   <path d="M1000 425V550H790" class="skip"/>
   <path d="M760 515V550H790" class="l"/>
   <g filter="url(#s)">

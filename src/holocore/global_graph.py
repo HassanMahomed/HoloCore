@@ -1,7 +1,7 @@
-"""Cross-World structural graph aggregation.
+"""Cross-project structural graph aggregation.
 
-Only Atlas structural Signals are merged. Archive Markdown and Animus records
-remain owned by their World and are never copied into this graph.
+Only Code Map structure is merged. Knowledge notes and Memories records remain
+owned by their project and are never copied into this graph.
 """
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def build_global_graph(home: str | Path, *, output: str | Path | None = None) ->
     result = {
         "directed": True,
         "multigraph": False,
-        "graph": {"generator": "holocore-global-atlas", "home": str(manager_root), "worlds": worlds, "source": "Atlas-only; Archive and Animus remain World-owned"},
+        "graph": {"generator": "holocore-global-code-map", "home": str(manager_root), "worlds": worlds, "source": "Code Map only; Knowledge and Memories remain project-owned"},
         "nodes": nodes,
         "links": [edge for edge in links if not edge.get("self")],
     }

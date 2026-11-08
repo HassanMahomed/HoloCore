@@ -67,13 +67,14 @@ def test_html_rejects_invalid_graph_and_mapping_requires_output() -> None:
 def test_command_catalog_has_required_cross_platform_commands() -> None:
     names = {command.name for command in COMMANDS}
     assert names == {
-        "init", "search", "remember", "recall", "animus-sync", "animus-checkpoint", "diary", "timeline", "consolidate", "animus-export",
-        "atlas-refresh", "atlas-view", "atlas-explain", "atlas-path", "atlas-affected", "atlas-neighborhood", "atlas-constellations", "atlas-audit", "atlas-export",
+        "init", "search", "research", "architecture", "remember", "recall", "memory-collect", "memory-checkpoint", "memory-event", "memory-timeline", "memory-consolidate", "memory-export",
+        "code-map-refresh", "code-map-view", "code-map-explain", "code-map-path", "code-map-affected", "code-map-neighborhood", "code-map-groups", "code-map-audit", "code-map-export",
         "archive-search", "archive-create", "status", "doctor", "setup", "connect",
         "home", "worlds", "global-graph", "obsidian-vault", "watch", "sync-all", "update", "install-check", "uninstall", "cleanup", "ingest", "inbox-sync", "paths", "open-archive", "handoffs",
-            "animus-decks", "animus-signal", "animus-chronicle", "console",
+            "memory-groups", "memory-track", "memory-history", "console", "models-status", "models-configure",
     }
-    assert get_command("holocore-atlas-view").invocation.startswith("holocore atlas-view")
+    assert get_command("holocore-code-map-view").invocation.startswith("holocore code-map-view")
+    assert get_command("holocore-atlas-view").name == "code-map-view"
     assert get_command("holocore-sync-all").write is True
     assert get_command("home").write is False
 
@@ -85,7 +86,7 @@ def test_renderers_emit_every_command_with_portable_paths_and_arguments() -> Non
     assert all(len(files) == len(COMMANDS) for platform, files in rendered.items() if platform != "claude")
     for platform, files in rendered.items():
         assert all("\\" not in path for path in files)
-        assert any("atlas-view" in path for path in files)
+        assert any("code-map-view" in path for path in files)
         if platform == "codex":
             assert all(path.endswith("/SKILL.md") for path in files)
             assert all("$ARGUMENTS" not in content for content in files.values())

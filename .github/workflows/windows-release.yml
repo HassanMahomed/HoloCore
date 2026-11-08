@@ -2,12 +2,19 @@ name: Windows release
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
   push:
+    branches:
+      - main
     tags:
       - "v*"
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   windows-executable:
@@ -17,30 +24,148 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install build dependencies
-        run: python -m pip install . pyinstaller pytest
+      - name: Install locked build runtime
+        run: python -m pip install uv==0.11.28
+      - name: Sync locked project dependencies
+        run: uv sync --frozen
       - name: Run tests
-        run: python -m pytest -q
+        run: uv run --with pytest==9.0.2 pytest -q
+      - name: Verify tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $version = uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
+          if ($env:GITHUB_REF_NAME -ne "v$version") { throw "Tag $env:GITHUB_REF_NAME does not match package version $version" }
       - name: Build self-contained executable
         shell: pwsh
         run: >-
-          pyinstaller --clean --noconfirm --onefile
+          uv run --with pyinstaller==6.16.0 pyinstaller --clean --noconfirm --onefile
           --name holocore-windows-x64
           --paths src
           --collect-submodules holocore
           src/holocore/__main__.py
-      - name: Create checksum
+      - name: Require release signing credentials
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          SIGNING_CERTIFICATE: ${{ secrets.HOLOCORE_SIGNING_CERTIFICATE_BASE64 }}
+          SIGNING_PASSWORD: ${{ secrets.HOLOCORE_SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERTIFICATE)) { throw 'HOLOCORE_SIGNING_CERTIFICATE_BASE64 is required for a tagged release.' }
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_PASSWORD)) { throw 'HOLOCORE_SIGNING_CERTIFICATE_PASSWORD is required for a tagged release.' }
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\holocore-signing.pfx", [Convert]::FromBase64String($env:SIGNING_CERTIFICATE))
+      - name: Sign engine executable
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          SIGNING_PASSWORD: ${{ secrets.HOLOCORE_SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+          if ($null -eq $signtool) { throw 'signtool.exe was not found.' }
+          & $signtool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f "$env:RUNNER_TEMP\holocore-signing.pfx" /p $env:SIGNING_PASSWORD dist\holocore-windows-x64.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Engine Authenticode signing failed.' }
+          & $signtool.FullName verify /pa /v dist\holocore-windows-x64.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Engine Authenticode verification failed.' }
+      - name: Build native setup application
+        shell: pwsh
+        run: >-
+          uv run --with pyinstaller==6.16.0 pyinstaller --clean --noconfirm --onefile --windowed
+          --name holocore-setup-windows-x64
+          --paths src
+          --collect-submodules holocore
+          --add-data "docs/assets/holocore-icon.png;holocore-assets"
+          --add-binary "dist/holocore-windows-x64.exe;holocore-payload"
+          src/holocore/setup_app.py
+      - name: Sign setup executable
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          SIGNING_PASSWORD: ${{ secrets.HOLOCORE_SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+          if ($null -eq $signtool) { throw 'signtool.exe was not found.' }
+          & $signtool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f "$env:RUNNER_TEMP\holocore-signing.pfx" /p $env:SIGNING_PASSWORD dist\holocore-setup-windows-x64.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Setup Authenticode signing failed.' }
+          & $signtool.FullName verify /pa /v dist\holocore-setup-windows-x64.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Setup Authenticode verification failed.' }
+      - name: Execute built release artifacts
         shell: pwsh
         run: |
-          $hash = (Get-FileHash -Algorithm SHA256 dist/holocore-windows-x64.exe).Hash.ToLowerInvariant()
-          "$hash  holocore-windows-x64.exe" | Set-Content -Encoding ascii dist/holocore-windows-x64.exe.sha256
+          $expected = uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
+          $cliVersion = (& .\dist\holocore-windows-x64.exe --version | Out-String).Trim()
+          $setupVersion = (& .\dist\holocore-setup-windows-x64.exe --version | Out-String).Trim()
+          if ($cliVersion -ne $expected) { throw "CLI artifact reports $cliVersion; expected $expected" }
+          if ($setupVersion -ne $expected) { throw "Setup artifact reports $setupVersion; expected $expected" }
+          & .\dist\holocore-setup-windows-x64.exe --ui-smoke-test
+          if ($LASTEXITCODE -ne 0) { throw "Built Setup native UI smoke test failed" }
+          & .\dist\holocore-windows-x64.exe --json --root "$env:RUNNER_TEMP\holocore-smoke" init --no-git --home "$env:RUNNER_TEMP\holocore-home" | Out-Host
+          if ($LASTEXITCODE -ne 0) { throw "Built CLI smoke setup failed" }
+          & .\dist\holocore-windows-x64.exe --json --root "$env:RUNNER_TEMP\holocore-smoke" status | Out-Host
+          if ($LASTEXITCODE -ne 0) { throw "Built CLI smoke status failed" }
+      - name: Create reproducible CycloneDX SBOM
+        shell: pwsh
+        run: >-
+          uvx --from cyclonedx-bom==7.2.1 cyclonedx-py environment .venv
+          --pyproject pyproject.toml --mc-type application --sv 1.6
+          --output-reproducible --of JSON -o dist/holocore-sbom.cdx.json
+      - name: Create checksums and immutable release manifest
+        shell: pwsh
+        run: |
+          $assets = @{}
+          foreach ($name in @('holocore-windows-x64.exe', 'holocore-setup-windows-x64.exe')) {
+            $hash = (Get-FileHash -Algorithm SHA256 (Join-Path dist $name)).Hash.ToLowerInvariant()
+            "$hash  $name" | Set-Content -Encoding ascii (Join-Path dist "$name.sha256")
+            $assets[$name] = @{ sha256 = $hash }
+          }
+          $version = (& .\dist\holocore-windows-x64.exe --version | Out-String).Trim()
+          $signature = Get-AuthenticodeSignature -LiteralPath .\dist\holocore-windows-x64.exe
+          $tagged = $env:GITHUB_REF -like 'refs/tags/*'
+          if ($tagged -and ($signature.Status -ne 'Valid' -or $null -eq $signature.SignerCertificate)) { throw 'Tagged release is not Authenticode signed.' }
+          $signing = @{
+            required = $tagged
+            thumbprint = if ($signature.SignerCertificate) { $signature.SignerCertificate.Thumbprint } else { '' }
+            subject = if ($signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { '' }
+          }
+          @{ schema_version = 2; version = $version; tag = "v$version"; assets = $assets; signing = $signing } |
+            ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 dist\release-manifest.json
+      - name: Execute signed install lifecycle
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $version = (& .\dist\holocore-windows-x64.exe --version | Out-String).Trim()
+          $install = Join-Path $env:RUNNER_TEMP 'holocore-lifecycle-install'
+          $lifecycleHome = Join-Path $env:RUNNER_TEMP 'holocore-lifecycle-home'
+          $project = Join-Path $env:RUNNER_TEMP 'holocore-lifecycle-project'
+          & .\install.ps1 -Version $version -Yes -NoUI -InstallDir $install -ReleaseDirectory .\dist -SkipShellIntegration -Home $lifecycleHome -Project $project
+          if ($LASTEXITCODE -ne 0) { throw 'Clean install lifecycle failed.' }
+          & (Join-Path $install 'holocore.exe') --root $project --json status | Out-Host
+          if ($LASTEXITCODE -ne 0) { throw 'Installed CLI status failed.' }
+          & .\install.ps1 -Version $version -Yes -UpgradeOnly -InstallDir $install -ReleaseDirectory .\dist -SkipShellIntegration -Home $lifecycleHome
+          if (-not (Test-Path -LiteralPath (Join-Path $install 'holocore.exe.previous'))) { throw 'Upgrade did not retain rollback engine.' }
+          & .\install.ps1 -Rollback -InstallDir $install -SkipShellIntegration
+          if ($LASTEXITCODE -ne 0) { throw 'Rollback lifecycle failed.' }
+          & .\install.ps1 -Uninstall -InstallDir $install -SkipShellIntegration
+          if (Test-Path -LiteralPath $install) { throw 'Uninstall left application files behind.' }
+          if (-not (Test-Path -LiteralPath $lifecycleHome)) { throw 'Uninstall removed HoloCore Home.' }
       - uses: actions/upload-artifact@v4
         with:
           name: holocore-windows-x64
           path: |
             dist/holocore-windows-x64.exe
             dist/holocore-windows-x64.exe.sha256
+            dist/holocore-setup-windows-x64.exe
+            dist/holocore-setup-windows-x64.exe.sha256
+            dist/release-manifest.json
+            dist/holocore-sbom.cdx.json
             install.ps1
+      - name: Attest release build provenance
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/holocore-windows-x64.exe
+            dist/holocore-setup-windows-x64.exe
+            dist/holocore-sbom.cdx.json
       - name: Attach files to tagged release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -48,4 +173,8 @@ jobs:
           files: |
             dist/holocore-windows-x64.exe
             dist/holocore-windows-x64.exe.sha256
+            dist/holocore-setup-windows-x64.exe
+            dist/holocore-setup-windows-x64.exe.sha256
+            dist/release-manifest.json
+            dist/holocore-sbom.cdx.json
             install.ps1

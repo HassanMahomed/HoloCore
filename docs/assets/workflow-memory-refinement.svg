@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
-  <title id="title">HoloCore automatic conversation capture, memory refinement, and World Archive promotion</title>
-  <desc id="desc">Claude SessionEnd or Codex Stop captures only new messages, preserves a project-local raw audit, performs one extraction pass, stores project-local Animus shards, and automatically promotes useful knowledge to the active World Archive while Shared remains explicit.</desc>
+  <title id="title">HoloCore automatic conversation capture, memory refinement, and project Knowledge promotion</title>
+  <desc id="desc">Supported transcript checkpoints capture only new messages, preserve a local raw audit, perform one extraction pass, store scoped Memories, and promote useful reviewed details into project Knowledge while Shared remains explicit.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#2a1830"/></linearGradient>
     <filter id="s"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".3"/></filter>
@@ -8,7 +8,7 @@
     <style>.f{font-family:Inter,Segoe UI,Arial,sans-serif}.t{fill:#f8fafc;font-size:30px;font-weight:700}.h{fill:#f8fafc;font-size:18px;font-weight:700}.p{fill:#ddcfdf;font-size:14px}.n{fill:#baa7bd;font-size:12px}.l{stroke:#f9a8d4;stroke-width:3;fill:none;marker-end:url(#a)}.teal{stroke:#5eead4;stroke-width:3;fill:none;marker-end:url(#a)}.dash{stroke:#f9a8d4;stroke-width:2;stroke-dasharray:7 7;fill:none}</style>
   </defs>
   <rect width="1200" height="675" fill="url(#bg)"/>
-  <text x="60" y="56" class="f t">Session end → local memory → active World knowledge</text>
+  <text x="60" y="56" class="f t">Session end → local Memories → project Knowledge</text>
   <text x="60" y="85" class="f p">Capture is incremental and retry-safe; useful extraction promotes automatically, but Shared remains an explicit choice.</text>
 
   <g filter="url(#s)">
@@ -51,15 +51,15 @@
 
   <g filter="url(#s)">
     <rect x="120" y="380" width="450" height="155" rx="18" fill="#4a283e" stroke="#f472b6" stroke-width="2"/>
-    <text x="345" y="419" text-anchor="middle" class="f h">5. Project-local Animus</text>
-    <text x="345" y="450" text-anchor="middle" class="f p">&lt;project&gt;/.holocore/animus.db</text>
-    <text x="345" y="481" text-anchor="middle" class="f n">deduplicate • provenance • World/Sector scope</text>
-    <text x="345" y="507" text-anchor="middle" class="f n">small Memory Shards ready for later recall</text>
+    <text x="345" y="419" text-anchor="middle" class="f h">5. Scoped Memories</text>
+    <text x="345" y="450" text-anchor="middle" class="f p">&lt;Home&gt;/Memories/animus.db</text>
+    <text x="345" y="481" text-anchor="middle" class="f n">deduplicate • provenance • project/group scope</text>
+    <text x="345" y="507" text-anchor="middle" class="f n">small retained details ready for later recall</text>
   </g>
   <g filter="url(#s)">
     <rect x="630" y="380" width="450" height="155" rx="18" fill="#113b39" stroke="#2dd4bf" stroke-width="2"/>
-    <text x="855" y="419" text-anchor="middle" class="f h">6. Automatic World promotion</text>
-    <text x="855" y="450" text-anchor="middle" class="f p">&lt;Home&gt;/Archive/Worlds/&lt;world-id&gt;</text>
+    <text x="855" y="419" text-anchor="middle" class="f h">6. Project Knowledge promotion</text>
+    <text x="855" y="450" text-anchor="middle" class="f p">&lt;Home&gt;/Knowledge/Projects/&lt;project-id&gt;</text>
     <text x="855" y="478" text-anchor="middle" class="f p">/wiki/memory/&lt;date&gt;-&lt;digest&gt;.md</text>
     <text x="855" y="507" text-anchor="middle" class="f n">useful extraction only • deterministic deduplication</text>
   </g>
@@ -67,8 +67,8 @@
 
   <g filter="url(#s)">
     <rect x="250" y="575" width="700" height="65" rx="15" fill="#2d2437" stroke="#f9a8d4"/>
-    <text x="600" y="602" text-anchor="middle" class="f p">Shared is never automatic • use an explicit shared/ Archive path</text>
-    <text x="600" y="625" text-anchor="middle" class="f n">after capture, HoloCore also ensures the primary graphify-out Atlas is fresh</text>
+    <text x="600" y="602" text-anchor="middle" class="f p">Shared is never automatic • promotion stays reviewable and scoped</text>
+    <text x="600" y="625" text-anchor="middle" class="f n">after capture, HoloCore also checks that the project Code Map is fresh</text>
   </g>
   <path d="M855 535V565" class="dash"/>
 </svg>

@@ -46,7 +46,8 @@ The default Home is `%USERPROFILE%\HoloCore` on Windows or `~/HoloCore` on other
 | `archive` | This World's Archive path |
 | `shared_archive` | Shared Archive path |
 | `state_dir` | Project-local generated runtime |
-| `animus` | Project-local SQLite path |
+| `memories` | Shared SQLite path for project-scoped Memories |
+| `animus` | Legacy v0.x alias accepted when reading existing configuration |
 | `raw_chats` | Project-local raw audit directory |
 | `llm` | Optional memory-refinement provider settings |
 
@@ -82,7 +83,27 @@ Client-side trust cannot be pre-approved:
 
 ## Optional memory-refinement provider
 
-The default is local and keyless. To use an OpenAI-compatible endpoint, add `llm` to `<project>/.holocore/config.json`:
+The default is deterministic, local, and keyless. HoloCore can discover an already-running Ollama service on loopback and list its installed models without downloading or starting anything:
+
+```powershell
+holocore models discover
+holocore models configure --provider ollama --model "<installed-model>"
+holocore models status
+```
+
+The explicit selection is stored without credentials at `<Home>/Runtime/local-model.json` and is shared by registered projects using that Home. `holocore models clear` removes only this selection and restores deterministic extraction.
+
+Discovery accepts only credential-free HTTP loopback origins. It never scans the LAN or a public endpoint. If the configured runtime or model becomes unavailable, extraction makes one bounded provider attempt and continues through the deterministic fallback.
+
+For automation or an existing OpenAI-compatible provider, environment variables remain the highest-precedence configuration:
+
+```powershell
+$env:HOLOCORE_LLM_BASE_URL = "https://provider.example/v1"
+$env:HOLOCORE_LLM_MODEL = "example-model"
+$env:HOLOCORE_LLM_API_KEY = "<secret>"
+```
+
+Older project-local `llm` settings remain compatible and are not rewritten. Their existing shape is:
 
 ```json
 {
@@ -95,13 +116,7 @@ The default is local and keyless. To use an OpenAI-compatible endpoint, add `llm
 }
 ```
 
-Set the secret outside the file:
-
-```powershell
-$env:HOLOCORE_LLM_API_KEY = "<secret>"
-```
-
-If `base_url` or `model` is absent, HoloCore uses deterministic local extraction. One extraction pass produces summary, facts, decisions, preferences, and entities. Raw chats remain under the project, shards remain in local Animus, and useful extraction is promoted into the active World's Archive.
+If `base_url` or `model` is absent, HoloCore uses deterministic extraction. One pass produces summary, facts, decisions, preferences, and entities. Raw audits and provider/fallback provenance remain local, and useful extraction is promoted through the existing project Knowledge path.
 
 ## Private state
 

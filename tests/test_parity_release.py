@@ -33,6 +33,40 @@ def test_compatibility_matrix_is_json_serializable_and_tools_are_namespaced() ->
     assert {item["name"] for item in PROMPTS} == set(matrix["cli"])
 
 
+def test_windows_release_builds_cli_and_native_setup_assets() -> None:
+    workflow = (Path(__file__).parents[1] / ".github/workflows/windows-release.yml").read_text(encoding="utf-8")
+    installer = (Path(__file__).parents[1] / "install.ps1").read_text(encoding="utf-8")
+
+    assert "--windowed" in workflow
+    assert "holocore-setup-windows-x64" in workflow
+    assert "src/holocore/setup_app.py" in workflow
+    assert "--add-binary" in workflow
+    assert "holocore-payload" in workflow
+    assert "HoloCore Setup.exe" in installer
+    assert "Start-Process -FilePath $setupExePath" in installer
+    assert "pull_request:" in workflow
+    assert "branches:" in workflow
+    assert "uv sync --frozen" in workflow
+    assert "Verify tag matches package version" in workflow
+    assert "Execute built release artifacts" in workflow
+    assert "Require release signing credentials" in workflow
+    assert "signtool" in workflow
+    assert "--ui-smoke-test" in workflow
+    assert "holocore-sbom.cdx.json" in workflow
+    assert "actions/attest-build-provenance@v2" in workflow
+    assert "Execute signed install lifecycle" in workflow
+    assert "release-manifest.json" in workflow
+    assert "releases/latest/download" not in installer
+    assert "release-manifest.json" in installer
+    assert "Test-DownloadedArtifact" in installer
+    assert "Assert-AuthenticodeSignature" in installer
+    assert "Invoke-HoloCoreRollback" in installer
+    assert "ReleaseDirectory" in installer
+    assert "checksum was unavailable" not in installer
+    assert '"$releaseBase/install.ps1"' in installer
+    assert "Invoke-HoloCoreUninstall" in installer
+
+
 @pytest.fixture
 def keyless_release_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, dict[str, str]]:
     world = tmp_path / "keyless-release-world"
@@ -69,6 +103,11 @@ def test_keyless_release_acceptance_fixture(keyless_release_env: tuple[Path, dic
     status = _run_cli(world, env, "status")
     assert status.returncode == 0, status.stderr
     assert json.loads(status.stdout)["readiness"]["ready"] is True
+    assert json.loads(status.stdout)["local_model"]["mode"] == "deterministic"
+
+    models = _run_cli(world, env, "models", "status")
+    assert models.returncode == 0, models.stderr
+    assert json.loads(models.stdout)["mode"] == "deterministic"
 
     connections = _run_cli(world, env, "connections")
     assert connections.returncode == 0, connections.stderr
@@ -119,7 +158,7 @@ def test_keyless_release_acceptance_fixture(keyless_release_env: tuple[Path, dic
 
 
 def test_complete_three_engine_keyless_release_path(keyless_release_env: tuple[Path, dict[str, str]]) -> None:
-    """Exercise the merged Archive, Atlas, and Animus workflow in one runtime."""
+    """Exercise the merged Knowledge, Code Map, and Memories workflow in one runtime."""
     world, env = keyless_release_env
     engine = HoloCoreEngine(world)
     setup = engine.setup(git=False, home=Path(env["HOLOCORE_HOME"]))
@@ -140,13 +179,13 @@ def test_complete_three_engine_keyless_release_path(keyless_release_env: tuple[P
     assert atlas.explain("ReleaseFeature")["matches"]
 
     engine.remember("The release decision is to keep the workflow local.", sector="project", source="test")
-    engine.router.animus.record_diary("Release verification completed.", world=engine.router.world_id, title="Release", sector="project")
-    assert engine.router.animus.timeline(world=engine.router.world_id, sector="project")
-    assert engine.router.animus.consolidate(world=engine.router.world_id, sector="project")["examined"] >= 1
-    assert engine.router.animus.search("release decision", world=engine.router.world_id)
+    engine.router.memories.record_diary("Release verification completed.", world=engine.router.world_id, title="Release", sector="project")
+    assert engine.router.memories.timeline(world=engine.router.world_id, sector="project")
+    assert engine.router.memories.consolidate(world=engine.router.world_id, sector="project")["examined"] >= 1
+    assert engine.router.memories.search("release decision", world=engine.router.world_id)
 
     engine.refresh()
     unified = engine.search("ReleaseFeature release decision")
     assert any(item.source == "ARCHIVE" for item in unified)
     assert any(item.source == "ATLAS" for item in unified)
-    assert any(item.source == "ANIMUS" for item in unified)
+    assert any(item.source == "MEMORIES" for item in unified)

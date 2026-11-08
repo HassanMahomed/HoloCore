@@ -54,7 +54,7 @@ Atlas maps files, code symbols, and relationships for the active project:
 
 ```powershell
 cd <project>
-holocore atlas-view
+holocore code-map-view
 ```
 
 The main graph is generated at `<project>/holocore-out/atlas.html` and opens in a normal browser. The legacy path `<project>/.holocore/atlas.html` is refreshed as an identical compatibility copy. AI clients consume `<project>/holocore-out/graph.json` directly. Existing `graphify-out` folders are migrated automatically when HoloCore next refreshes Atlas.

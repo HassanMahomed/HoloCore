@@ -15,7 +15,7 @@ def test_router_checks_then_runs_atlas_only_for_code_query(tmp_path: Path, monke
     monkeypatch.setattr(router.atlas, "freshness", lambda: calls.append("check") or {"state": "fresh", "fresh": True})
     monkeypatch.setattr(router.atlas, "search", lambda q: calls.append("atlas") or [{"id": "symbol:router", "label": "Router", "kind": "class", "source_file": "src/router.py"}])
     monkeypatch.setattr(router.archive, "search", lambda q: calls.append("archive") or [])
-    monkeypatch.setattr(router.animus, "search", lambda q, world=None, sector=None: calls.append("animus") or [])
+    monkeypatch.setattr(router.memories, "search", lambda q, world=None, sector=None: calls.append("memories") or [])
 
     router.search("dependency path")
 
@@ -38,17 +38,17 @@ def test_router_uses_graph_context_for_one_corresponding_archive_search(tmp_path
     assert "src/auth.py" in archive_queries[0]
 
 
-def test_router_queries_animus_last_only_for_history(tmp_path: Path, monkeypatch) -> None:
+def test_router_queries_memories_last_only_for_history(tmp_path: Path, monkeypatch) -> None:
     router = Router(tmp_path)
     calls: list[str] = []
     monkeypatch.setattr(router.atlas, "freshness", lambda: calls.append("check") or {"state": "fresh", "fresh": True})
     monkeypatch.setattr(router.atlas, "search", lambda q: calls.append("atlas") or [])
     monkeypatch.setattr(router.archive, "search", lambda q: calls.append("archive") or [])
-    monkeypatch.setattr(router.animus, "search", lambda q, world=None, sector=None: calls.append("animus") or [])
+    monkeypatch.setattr(router.memories, "search", lambda q, world=None, sector=None: calls.append("memories") or [])
 
     router.search("previous login error")
 
-    assert calls == ["check", "atlas", "archive", "animus"]
+    assert calls == ["check", "atlas", "archive", "memories"]
 
 
 def test_stale_atlas_is_reported_and_not_searched(tmp_path: Path, monkeypatch) -> None:

@@ -26,6 +26,45 @@ CLIENT_PROBES = {
     "opencode": ("opencode", Path.home() / ".config" / "opencode"),
 }
 
+LEGACY_INTERFACE_NAMES = (
+    "animus-sync", "animus-checkpoint", "diary", "timeline", "consolidate", "animus-export",
+    "animus-decks", "animus-signal", "animus-chronicle", "atlas-refresh", "atlas-view",
+    "atlas-explain", "atlas-path", "atlas-affected", "atlas-neighborhood", "atlas-constellations",
+    "atlas-audit", "atlas-export",
+)
+
+
+def remove_legacy_generated_interfaces(home: Path) -> list[str]:
+    """Remove only obsolete HoloCore-generated command files after regeneration."""
+    connections = Path(home).resolve() / "Connections"
+    candidates: list[Path] = []
+    for name in LEGACY_INTERFACE_NAMES:
+        candidates.extend([
+            connections / ".claude" / "commands" / f"holocore-{name}.md",
+            connections / ".claude" / "skills" / f"holocore-{name}" / "SKILL.md",
+            connections / ".cursor" / "commands" / f"holocore-{name}.md",
+            connections / ".gemini" / "commands" / f"holocore-{name}.toml",
+            connections / ".opencode" / "commands" / f"holocore-{name}.md",
+            connections / ".agents" / "skills" / f"holocore-{name}" / "SKILL.md",
+        ])
+    removed: list[str] = []
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if "HoloCore" not in text and "holocore" not in text:
+                continue
+            path.unlink()
+            removed.append(str(path))
+            try:
+                path.parent.rmdir()
+            except OSError:
+                pass
+        except OSError:
+            continue
+    return removed
+
 
 def _client_root() -> Path:
     """Return the real user profile, or an isolated root used by test/portable environments."""
@@ -376,7 +415,7 @@ export const HoloCoreActivity = async ({{ directory }}) => ({{
 
 def _migrate_legacy_state(root: Path, config: Config, created: list[Path], updated: list[Path], warnings: list[str]) -> None:
     """Copy useful legacy state once; never remove the project-local source."""
-    target_db = config.animus_path
+    target_db = config.memory_path
     legacy_databases = (
         root / ".holocore" / "animus.db",
         config.state_dir.parent / "Animus" / "animus.db",
@@ -384,13 +423,13 @@ def _migrate_legacy_state(root: Path, config: Config, created: list[Path], updat
     for legacy_db in legacy_databases:
         if not legacy_db.is_file() or legacy_db.resolve() == target_db.resolve():
             continue
-        from .animus import Animus
+        from .memories import MemoryStore
 
         existed = target_db.exists()
-        report = Animus(target_db).merge_database(legacy_db, world=config.world_id)
+        report = MemoryStore(target_db).merge_database(legacy_db, world=config.world_id)
         (updated if existed else created).append(target_db)
         warnings.append(
-            f"Migrated {report['shards']} legacy Memory Shards into shared Animus storage; "
+            f"Migrated {report['shards']} legacy Memory records into shared Memories storage; "
             "the source database was preserved."
         )
     legacy_chat_directories = (
@@ -466,7 +505,7 @@ description: Show HoloCore status, paths, and the available project commands.
 # HoloCore
 
 Run `holocore status` and `holocore paths` from the project root. HoloCore checks
-Atlas first, then the active World wiki, and consults Animus
+the Code Map first, then the active Project Knowledge, and consults Memories
 only when the question needs history. Use `/holocore-search` for a focused
 knowledge search or `/holocore-doctor` to diagnose the MCP connection.
 """,
@@ -529,4 +568,5 @@ __all__ = [
     "bootstrap_project",
     "detect_installed_clients",
     "inspect_client_connections",
+    "remove_legacy_generated_interfaces",
 ]

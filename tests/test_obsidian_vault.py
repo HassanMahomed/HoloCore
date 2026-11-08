@@ -38,4 +38,4 @@ def test_build_obsidian_vault_creates_one_linked_view_without_copying_archive_or
     assert list((vault / "Worlds" / "alpha" / "Signals").glob("*.md"))
     assert list((vault / "Worlds" / "beta" / "Signals").glob("*.md"))
     assert not (vault / "Archive").exists()
-    assert "Atlas-only" in (vault / "system" / "atlas-manifest.json").read_text(encoding="utf-8")
+    assert "Code Map only" in (vault / "system" / "atlas-manifest.json").read_text(encoding="utf-8")

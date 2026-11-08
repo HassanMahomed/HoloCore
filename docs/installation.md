@@ -1,185 +1,109 @@
-# Installation guide
+# Install and connect HoloCore v1
 
-![HoloCore installation selects one shared Home, registers a World, and connects AI clients](assets/workflow-install-ai.svg)
+![HoloCore signed installation selects one private Home, registers a project, and connects selected AI clients](assets/workflow-install-ai.svg)
 
-HoloCore installs once as a command-line tool. During first setup, you choose one shared **HoloCore Home**. Every project then registers as a **World** in that Home while keeping its generated Atlas, Animus, and raw chats local.
+HoloCore uses one user-selected **HoloCore Home** for verified Knowledge, project Code Maps, Memories, chat history, generated AI connections, and the project registry.
 
-## 1. Install HoloCore
+## Recommended Windows installation
 
-Install [`uv`](https://docs.astral.sh/uv/) if it is not already available, then install HoloCore from Git:
+Download `holocore-setup-windows-x64.exe` from the latest signed GitHub release and double-click it. The native four-step setup application lets you:
+
+1. Choose HoloCore Home and an optional first project.
+2. Select detected Claude Code, Codex, Cursor, Gemini CLI, and OpenCode connections.
+3. Choose whether to build the first Code Map and enable lightweight update checks.
+4. Select an installed Ollama model or keep deterministic mode.
+5. Review every resolved path and planned change before installation.
+
+For managed deployment:
 
 ```powershell
-uv tool install "git+https://github.com/VenomD846/HoloCore.git"
+irm https://github.com/HassanMahomed/HoloCore/releases/latest/download/install.ps1 | iex
 ```
 
-The installation provides `holocore` and the local `holocore-mcp` server. Obsidian, an external graph tool, an external memory application, and an LLM API key are not required.
+The installer requires a schema-v2 release manifest, matching SHA-256 hashes, valid Authenticode signatures, and the exact signer thumbprint recorded in the manifest. It stops before replacing an existing installation when any verification fails.
 
-## 2. Choose the shared Home and set up the first World
-
-Use a path you control and can keep backed up:
+## Developer installation
 
 ```powershell
-cd <project>
-holocore setup --home <Home>
+uv tool install "git+https://github.com/HassanMahomed/HoloCore.git"
+holocore setup-ui
 ```
 
-If you omit `--home` in an interactive terminal, first setup asks where the shared second brain should live. You can also select it before setup:
+Or initialize directly from a terminal:
 
 ```powershell
-holocore home <Home>
+cd C:\Projects\MyProject
+holocore setup --home "C:\Brains\HoloCore Home"
+```
+
+Later projects reuse the selected Home:
+
+```powershell
+cd C:\Projects\AnotherProject
 holocore setup
 ```
 
-When setup runs non-interactively without a previously selected Home, the portable default is `%USERPROFILE%\HoloCore` on Windows (or `~/HoloCore` on other systems). Use `--home` whenever you want a different location.
-
-The selected location is remembered by a small user-level pointer. Later projects reuse it automatically:
-
-```powershell
-cd <another-project>
-holocore setup
-```
-
-Use `holocore home` to show the selection and `holocore worlds` to list registered projects.
-
-## 3. Understand the created layout
-
-The Home contains one visible Archive vault:
+## Current Home layout
 
 ```text
 <Home>/
-├── Archive/
-│   ├── system/
-│   │   └── index.md
+├── Knowledge/
+│   ├── Projects/<project-id>/
 │   ├── Shared/
-│   │   └── wiki/                  Knowledge shared intentionally
-│   └── Worlds/
-│       └── <world-id>/
-│           ├── Inbox/
-│           ├── wiki/              Durable project knowledge
-│           └── system/index.md
-└── worlds.json                    Registered project paths and IDs
-```
-
-HoloCore runtime data is centralized in the project’s `.holocore/` folder. Claude,
-Codex, and other AI clients still require a small number of standard bridge files
-(`.mcp.json`, `.claude/`, `.codex/`, or `.agents/`) so they can discover HoloCore;
-those bridges contain configuration/commands only, not the database or knowledge.
-
-Each World keeps its runtime in the project:
-
-```text
-<project>/
-├── .holocore/
-│   ├── config.json
-│   ├── atlas.json
-│   ├── atlas.html
+│   └── system/index.md
+├── Projects/<project-id>/
+│   ├── CodeMap/graph.json
+│   ├── CodeMap/atlas.html
+│   ├── Runtime/
+│   ├── Inbox/
+│   ├── Sources/
+│   └── world.json
+├── Memories/
 │   ├── animus.db
-│   ├── capture-state.json
-│   └── raw-chats/
-├── HOLOCORE-START-HERE.md
-├── .claude/settings.json          Claude SessionEnd capture hook
-└── .codex/hooks.json              Codex Stop capture hook
+│   └── ChatHistory/<project-id>/
+├── Connections/
+└── worlds.json
 ```
 
-Setup also merges MCP configuration, generated commands, client instructions, and Codex project skills. Unrelated settings are preserved. Existing invalid configuration is skipped or repaired only when HoloCore can safely identify its own section.
+`animus.db`, `atlas.html`, `world.json`, and `worlds.json` keep their historical filenames for data and link compatibility. Current interfaces call them Memories, Code Map, project configuration, and the project registry.
 
-If the project has an older top-level `Archive`, setup copies Markdown into `<Home>/Knowledge/Projects/<project-id>/Imported`. Identical files are skipped and conflicting files are left untouched.
-
-## 4. Approve the client connections
-
-AI clients discover project integrations when they start, so restart or reopen the project after setup.
-
-### Claude Code
-
-1. Restart Claude Code in the World.
-2. Run `/mcp`.
-3. Approve or confirm the project-local `holocore` server.
-4. Use `/holocore-search` or `/mcp__holocore__search`.
-
-Claude's automatic conversation capture runs at `SessionEnd`. The hook is installed in `<project>/.claude/settings.json`.
-
-### Codex
-
-1. Restart Codex or reopen the World.
-2. Run `/hooks`.
-3. Review and trust the HoloCore `Stop` hook.
-4. Invoke `$holocore-search`.
-
-Codex uses `$`-invoked skills under `<project>/.agents/skills`; it does not use HoloCore slash commands. The capture hook is installed in `<project>/.codex/hooks.json`.
-
-### Other clients
-
-Gemini receives project-local TOML commands. Cursor and OpenCode receive their native project command and MCP formats. Use `holocore connect` if a client was installed after setup.
-
-## 5. Verify the result
+## Verify the installation
 
 ```powershell
+holocore --version
 holocore status
+holocore connections
 holocore paths
-holocore doctor
-holocore worlds
+holocore projects
 ```
 
-`status` reports Home/World paths, Atlas freshness, Animus, client connection state, and whether Claude/Codex capture is installed.
+Restart connected AI clients after the first setup. Claude Code and Codex may request one-time approval for the local MCP server or capture hooks.
 
-## Optional: open the Archive in Obsidian
-
-Obsidian is not required. To use it:
-
-1. Choose **Open folder as vault**.
-2. Select `<Home>/Knowledge`.
-
-Open only this one Archive root. Do not open an individual World as a separate vault unless you intentionally want an incomplete view.
-
-Atlas has a separate self-contained HTML graph:
-
-```powershell
-holocore atlas-view
-```
-
-## Useful setup and lifecycle commands
-
-| Command | Purpose |
-|---|---|
-| `holocore home` | Show the selected Home |
-| `holocore home <Home>` | Select and initialize another Home |
-| `holocore setup [--home <Home>]` | Register the current World, connect clients, and build Atlas |
-| `holocore connect` | Add or repair project client integration |
-| `holocore paths` | Print all resolved Home, Archive, World, runtime, and integration paths |
-| `holocore worlds` | List every World in the selected Home |
-| `holocore sync-all` | Reconcile integrations and Atlas across all registered Worlds |
-| `holocore update` | Update HoloCore from Git, then reconcile all Worlds |
-| `holocore install-check` | Check the installed version and show update/uninstall commands |
-| `holocore uninstall` | Remove the CLI while preserving Home and project data |
-| `holocore open-archive` | Open `<Home>/Knowledge` |
-
-Use `--platform` repeatedly with `setup` or `connect` to configure only selected clients.
-
-## Upgrade or uninstall
-
-The built-in upgrade path is:
+## Upgrade and regenerate integrations
 
 ```powershell
 holocore update
+holocore sync-all --regenerate
 ```
 
-It uses `uv tool upgrade holocore`, which avoids the self-replacement problem from the older installer, and then runs all-World reconciliation. To reconcile without reinstalling:
+The regeneration command reconciles every registered project, writes schema-v6 project configuration, creates current `memory-*` and `code-map-*` integrations, and removes only obsolete HoloCore-generated legacy interfaces.
+
+## Roll back
+
+The Windows installer retains the previous engine and setup application as a matched pair. Exchange the installed and retained versions with:
 
 ```powershell
-holocore sync-all
+& "$env:LOCALAPPDATA\Programs\HoloCore\install.ps1" -Rollback
 ```
 
-If Windows reports that `holocore.exe` is being used by another process, close
-Claude Code, Codex, other MCP clients, and any stuck HoloCore terminal process.
-Open a fresh PowerShell window and run `uv tool upgrade holocore`, then retry
-`holocore update`.
+Rollback does not change HoloCore Home or project data.
 
-Uninstall the tool with:
+## Uninstall the application
 
 ```powershell
-uv tool uninstall holocore
+holocore uninstall
 ```
 
-Uninstalling the tool does not delete `<Home>/Knowledge`, `<Home>/worlds.json`, project-local `.holocore` state, or generated project integrations.
+Native uninstall removes executables, the cached installer, rollback binaries, the user PATH entry, and the Start menu shortcut. HoloCore Home, Knowledge, Code Maps, Memories, chat history, and registered project data are preserved.
 
-Changing Home with `holocore home <Home>` selects a different registry and vault; it does not move data from the previous Home. Run setup in each project you want to register with the new Home.
+See [Windows installation](windows-installation.md) for unattended options and [Troubleshooting](troubleshooting.md) for recovery guidance.
