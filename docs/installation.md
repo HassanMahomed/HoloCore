@@ -100,10 +100,12 @@ Rollback does not change HoloCore Home or project data.
 
 ## Uninstall the application
 
+Use **Windows Settings → Apps → Installed apps → HoloCore → Uninstall**, select **Uninstall HoloCore** from the Start menu, or use the removal option inside HoloCore Setup. For terminal-managed installations, run:
+
 ```powershell
 holocore uninstall
 ```
 
-Native uninstall removes executables, the cached installer, rollback binaries, the user PATH entry, and the Start menu shortcut. HoloCore Home, Knowledge, Code Maps, Memories, chat history, and registered project data are preserved.
+The native confirmation window explains exactly what will be removed. Uninstall removes executables, the cached installer, rollback binaries, the user PATH entry, both Start menu shortcuts, and the Windows Installed Apps registration. HoloCore Home, Knowledge, Code Maps, Memories, chat history, and registered project data are preserved.
 
 See [Windows installation](windows-installation.md) for unattended options and [Troubleshooting](troubleshooting.md) for recovery guidance.

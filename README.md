@@ -92,7 +92,7 @@ Open PowerShell and run:
 irm https://github.com/HassanMahomed/HoloCore/releases/latest/download/install.ps1 | iex
 ```
 
-The release includes a checksummed, standalone `holocore-setup-windows-x64.exe`. Double-click it to install the embedded HoloCore engine and open **HoloCore Setup** as a normal Windows desktop window—no terminal, browser, or Python installation required. It lets you choose HoloCore Home, select a first project and optional features, review detected AI clients and Ollama models, and inspect the exact resolved paths before applying anything. A Start menu shortcut lets you reopen setup later. The PowerShell one-liner remains available for unattended and managed deployment.
+The release includes a checksummed, standalone `holocore-setup-windows-x64.exe`. Double-click it to install the embedded HoloCore engine and open **HoloCore Setup** as a normal Windows desktop window—no terminal, browser, or Python installation required. It lets you choose HoloCore Home, select a first project and optional features, review detected AI clients and Ollama models, and inspect the exact resolved paths before applying anything. Start menu shortcuts let you reopen Setup or launch **Uninstall HoloCore**, and HoloCore also appears under **Windows Settings → Apps → Installed apps**. The PowerShell one-liner remains available for unattended and managed deployment.
 
 ![HoloCore native Windows setup application](docs/assets/holocore-native-setup.png)
 

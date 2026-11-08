@@ -7,16 +7,22 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import tkinter as tk
+import uuid
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
-from holocore.home import HomeManager
-from holocore.setup_wizard import CLIENT_NAMES, apply_setup, build_setup_plan, build_setup_state
 from holocore import __version__
-
+from holocore.home import HomeManager
+from holocore.setup_wizard import (
+    CLIENT_NAMES,
+    apply_setup,
+    build_setup_plan,
+    build_setup_state,
+)
 
 COLORS = {
     "navy": "#0F172A", "navy_2": "#1E293B", "paper": "#F8FAFC",
@@ -29,6 +35,8 @@ CLIENT_LABELS = {
     "claude": "Claude Code", "codex": "Codex", "cursor": "Cursor",
     "gemini": "Gemini CLI", "opencode": "OpenCode",
 }
+
+UNINSTALL_REGISTRY_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\HoloCore"
 
 
 def _copy_if_changed(source: Path, target: Path) -> bool:
@@ -43,10 +51,20 @@ def _copy_if_changed(source: Path, target: Path) -> bool:
     return True
 
 
-def _configure_windows_shell(install_dir: Path, setup_executable: Path) -> dict[str, Any]:
-    """Add the installed engine to user PATH and expose Setup in the Start menu."""
+def _default_install_dir() -> Path:
+    return (Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Programs/HoloCore").resolve()
+
+
+def _programs_dir() -> Path:
+    return Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming")) / "Microsoft/Windows/Start Menu/Programs"
+
+
+def _configure_windows_shell(
+    install_dir: Path, setup_executable: Path, *, version: str = __version__
+) -> dict[str, Any]:
+    """Register PATH, Start menu actions, and the Windows Installed Apps entry."""
     if os.name != "nt":
-        return {"path_changed": False, "shortcut": None}
+        return {"path_changed": False, "shortcut": None, "uninstall_shortcut": None, "registry_key": None}
     import winreg
 
     path_changed = False
@@ -60,14 +78,21 @@ def _configure_windows_shell(install_dir: Path, setup_executable: Path) -> dict[
             winreg.SetValueEx(key, "Path", 0, value_type, ";".join([*entries, str(install_dir)]))
             path_changed = True
     os.environ["PATH"] = str(install_dir) + os.pathsep + os.environ.get("PATH", "")
-    programs = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming")) / "Microsoft/Windows/Start Menu/Programs"
+    programs = _programs_dir()
     shortcut = programs / "HoloCore Setup.lnk"
+    uninstall_shortcut = programs / "Uninstall HoloCore.lnk"
     quote = lambda value: "'" + str(value).replace("'", "''") + "'"
     script = (
-        "$s=(New-Object -ComObject WScript.Shell).CreateShortcut(" + quote(shortcut) + ");"
+        "$w=New-Object -ComObject WScript.Shell;"
+        "$s=$w.CreateShortcut(" + quote(shortcut) + ");"
         "$s.TargetPath=" + quote(setup_executable) + ";"
         "$s.WorkingDirectory=" + quote(install_dir) + ";"
-        "$s.Description='Configure HoloCore folders, AI tools, features, and local models';$s.Save()"
+        "$s.Description='Configure HoloCore folders, AI tools, features, and local models';$s.Save();"
+        "$u=$w.CreateShortcut(" + quote(uninstall_shortcut) + ");"
+        "$u.TargetPath=" + quote(setup_executable) + ";"
+        "$u.Arguments='--uninstall';"
+        "$u.WorkingDirectory=" + quote(install_dir) + ";"
+        "$u.Description='Uninstall HoloCore while preserving Home, memories, Knowledge, and projects';$u.Save()"
     )
     completed = subprocess.run(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
@@ -75,8 +100,127 @@ def _configure_windows_shell(install_dir: Path, setup_executable: Path) -> dict[
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     if completed.returncode:
-        raise OSError(completed.stderr.strip() or "could not create the HoloCore Setup shortcut")
-    return {"path_changed": path_changed, "shortcut": str(shortcut)}
+        raise OSError(completed.stderr.strip() or "could not create the HoloCore Start menu shortcuts")
+
+    estimated_size = sum(path.stat().st_size for path in install_dir.iterdir() if path.is_file()) // 1024
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, UNINSTALL_REGISTRY_KEY) as key:
+        values = {
+            "DisplayName": ("HoloCore", winreg.REG_SZ),
+            "DisplayVersion": (version, winreg.REG_SZ),
+            "DisplayIcon": (str(setup_executable), winreg.REG_SZ),
+            "Publisher": ("HoloCore contributors", winreg.REG_SZ),
+            "InstallLocation": (str(install_dir), winreg.REG_SZ),
+            "UninstallString": (f'"{setup_executable}" --uninstall', winreg.REG_SZ),
+            "QuietUninstallString": (f'"{setup_executable}" --uninstall --quiet', winreg.REG_SZ),
+            "URLInfoAbout": ("https://github.com/HassanMahomed/HoloCore", winreg.REG_SZ),
+            "NoModify": (1, winreg.REG_DWORD),
+            "NoRepair": (1, winreg.REG_DWORD),
+            "EstimatedSize": (max(1, estimated_size), winreg.REG_DWORD),
+        }
+        for name, (value, value_type) in values.items():
+            winreg.SetValueEx(key, name, 0, value_type, value)
+    return {
+        "path_changed": path_changed,
+        "shortcut": str(shortcut),
+        "uninstall_shortcut": str(uninstall_shortcut),
+        "registry_key": rf"HKCU\{UNINSTALL_REGISTRY_KEY}",
+    }
+
+
+def _remove_windows_shell_integration(install_dir: Path) -> dict[str, Any]:
+    """Remove only HoloCore-owned per-user Windows integration."""
+    if os.name != "nt":
+        return {"path_changed": False, "shortcuts_removed": [], "registry_removed": False}
+    import winreg
+
+    path_changed = False
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+        try:
+            current, value_type = winreg.QueryValueEx(key, "Path")
+        except FileNotFoundError:
+            current, value_type = "", winreg.REG_EXPAND_SZ
+        entries = [item for item in str(current).split(";") if item]
+        retained = [item for item in entries if item.rstrip("\\").casefold() != str(install_dir).rstrip("\\").casefold()]
+        if retained != entries:
+            winreg.SetValueEx(key, "Path", 0, value_type, ";".join(retained))
+            path_changed = True
+
+    removed: list[str] = []
+    for shortcut in (_programs_dir() / "HoloCore Setup.lnk", _programs_dir() / "Uninstall HoloCore.lnk"):
+        if shortcut.exists():
+            shortcut.unlink()
+            removed.append(str(shortcut))
+    try:
+        winreg.DeleteKey(winreg.HKEY_CURRENT_USER, UNINSTALL_REGISTRY_KEY)
+        registry_removed = True
+    except FileNotFoundError:
+        registry_removed = False
+    return {"path_changed": path_changed, "shortcuts_removed": removed, "registry_removed": registry_removed}
+
+
+def _validate_uninstall_directory(destination: Path) -> None:
+    """Reject broad or unrelated deletion targets before recursive removal."""
+    protected = {
+        Path(destination.anchor).resolve(),
+        Path.home().resolve(),
+        Path(os.environ.get("LOCALAPPDATA", Path.home())).resolve(),
+        Path(os.environ.get("APPDATA", Path.home())).resolve(),
+    }
+    if destination in protected or destination.parent == destination:
+        raise RuntimeError(f"Refusing to uninstall from protected path: {destination}")
+    installer = destination / "install.ps1"
+    application_markers = (destination / "holocore.exe", destination / "HoloCore Setup.exe")
+    if not installer.is_file() or not any(marker.is_file() for marker in application_markers):
+        raise RuntimeError(
+            f"Refusing to remove a folder that is not a verified HoloCore installation: {destination}"
+        )
+
+
+def uninstall_native_installation(install_dir: str | Path | None = None) -> dict[str, Any]:
+    """Remove installed application files and shell integration, preserving all user data."""
+    destination = Path(install_dir or _default_install_dir()).resolve()
+    _validate_uninstall_directory(destination)
+    shell = _remove_windows_shell_integration(destination)
+    removed = destination.is_dir()
+    if removed:
+        shutil.rmtree(destination)
+    return {"uninstalled": removed, "install_dir": str(destination), "data_preserved": True, **shell}
+
+
+def _queue_worker_cleanup(worker_path: Path) -> None:
+    if os.name != "nt" or not worker_path.is_file():
+        return
+    escaped = str(worker_path).replace("'", "''")
+    command = (
+        f"Wait-Process -Id {os.getpid()} -ErrorAction SilentlyContinue; "
+        f"Remove-Item -LiteralPath '{escaped}' -Force -ErrorAction SilentlyContinue"
+    )
+    subprocess.Popen(
+        ["powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-Command", command],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+
+
+def stage_native_uninstaller(
+    *, install_dir: str | Path | None = None, source_setup: str | Path | None = None,
+    stage_dir: str | Path | None = None, quiet: bool = False,
+) -> dict[str, Any]:
+    """Copy the windowed uninstaller outside its install folder and launch it."""
+    destination = Path(install_dir or _default_install_dir()).resolve()
+    source = Path(source_setup or sys.executable).resolve()
+    if not source.is_file():
+        raise FileNotFoundError(f"HoloCore Setup was not found: {source}")
+    staging = Path(stage_dir or tempfile.gettempdir()).resolve()
+    staging.mkdir(parents=True, exist_ok=True)
+    worker = staging / f"HoloCore-Uninstall-{uuid.uuid4().hex}.exe"
+    shutil.copy2(source, worker)
+    command = [str(worker), "--uninstall-worker", "--install-dir", str(destination)]
+    if quiet:
+        command.append("--quiet")
+    subprocess.Popen(command, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    return {"staged": True, "worker": str(worker), "install_dir": str(destination), "quiet": quiet}
 
 
 def install_embedded_release(
@@ -84,24 +228,38 @@ def install_embedded_release(
     payload_path: str | Path | None = None,
     setup_executable: str | Path | None = None,
     install_dir: str | Path | None = None,
+    installer_script_path: str | Path | None = None,
+    configure_shell: bool = True,
 ) -> dict[str, Any]:
     """Install the engine carried inside the windowed release executable."""
     payload = Path(payload_path) if payload_path else resource_path("holocore-payload/holocore-windows-x64.exe")
     if not payload.is_file():
         return {"embedded": False, "installed": False}
     source_setup = Path(setup_executable or sys.executable).resolve()
-    destination = Path(install_dir or (Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Programs/HoloCore")).resolve()
+    destination = Path(install_dir or _default_install_dir()).resolve()
     engine_target = destination / "holocore.exe"
     setup_target = destination / "HoloCore Setup.exe"
+    installer_source = Path(installer_script_path) if installer_script_path else resource_path("holocore-assets/install.ps1")
+    if not installer_source.is_file():
+        installer_source = resource_path("install.ps1")
+    if not installer_source.is_file():
+        raise OSError("The bundled HoloCore uninstaller is missing.")
+    installer_target = destination / "install.ps1"
     engine_changed = _copy_if_changed(payload, engine_target)
     setup_changed = False
     if source_setup != setup_target:
         setup_changed = _copy_if_changed(source_setup, setup_target)
-    shell = _configure_windows_shell(destination, setup_target)
+    installer_changed = _copy_if_changed(installer_source, installer_target)
+    shell = (
+        _configure_windows_shell(destination, setup_target, version=__version__)
+        if configure_shell
+        else {"path_changed": False, "shortcut": None, "uninstall_shortcut": None, "registry_key": None}
+    )
     return {
         "embedded": True, "installed": True, "install_dir": str(destination),
         "engine": str(engine_target), "setup": str(setup_target),
-        "engine_changed": engine_changed, "setup_changed": setup_changed, **shell,
+        "installer": str(installer_target), "engine_changed": engine_changed,
+        "setup_changed": setup_changed, "installer_changed": installer_changed, **shell,
     }
 
 
@@ -122,6 +280,113 @@ def initial_native_state(home: str | Path | None = None, project: str | Path | N
         "defaults": {"clients": [], "build_code_map": True, "auto_update": False},
         "detecting": True,
     }
+
+
+class NativeUninstallApp:
+    """Small, explicit Windows uninstaller that preserves every HoloCore data folder."""
+
+    def __init__(self, root: tk.Tk, *, install_dir: str | Path, worker_path: str | Path | None = None):
+        self.root = root
+        self.install_dir = Path(install_dir).resolve()
+        self.worker_path = Path(worker_path).resolve() if worker_path else None
+        self.running = False
+        self.status_var = tk.StringVar(value="Ready to uninstall")
+        self._icon: tk.PhotoImage | None = None
+        self._configure_window()
+        self._build()
+
+    def _configure_window(self) -> None:
+        self.root.title("Uninstall HoloCore")
+        self.root.geometry("640x460")
+        self.root.resizable(False, False)
+        self.root.configure(bg=COLORS["paper"])
+        self.root.protocol("WM_DELETE_WINDOW", self._close)
+        icon = resource_path("holocore-assets/holocore-icon.png")
+        if not icon.is_file():
+            icon = resource_path("docs/assets/holocore-icon.png")
+        try:
+            source = tk.PhotoImage(file=str(icon))
+            factor = max(1, source.width() // 64)
+            self._icon = source.subsample(factor, factor)
+            self.root.iconphoto(True, self._icon)
+        except tk.TclError:
+            self._icon = None
+
+    def _build(self) -> None:
+        self.body = tk.Frame(self.root, bg=COLORS["panel"], padx=42, pady=34)
+        self.body.pack(fill="both", expand=True, padx=18, pady=18)
+        tk.Label(
+            self.body, text="Uninstall HoloCore", bg=COLORS["panel"], fg=COLORS["ink"],
+            font=("Segoe UI Semibold", 24),
+        ).pack(anchor="w")
+        tk.Label(
+            self.body,
+            text="This removes the application from Windows. Your HoloCore Home, Knowledge, memories, chat history, and connected projects will remain untouched.",
+            bg=COLORS["panel"], fg=COLORS["muted"], font=("Segoe UI", 10),
+            wraplength=520, justify="left",
+        ).pack(anchor="w", pady=(10, 22))
+        detail = tk.Frame(self.body, bg="#FFF7ED", highlightbackground="#FDBA74", highlightthickness=1, padx=18, pady=16)
+        detail.pack(fill="x")
+        tk.Label(detail, text="Will be removed", bg="#FFF7ED", fg=COLORS["ink"], font=("Segoe UI Semibold", 11)).pack(anchor="w")
+        tk.Label(
+            detail,
+            text="Application files · PATH entry · Start menu shortcuts · Installed Apps entry",
+            bg="#FFF7ED", fg=COLORS["muted"], font=("Segoe UI", 9), wraplength=480, justify="left",
+        ).pack(anchor="w", pady=(4, 0))
+        self.progress = ttk.Progressbar(self.body, mode="indeterminate")
+        self.progress.pack(fill="x", pady=(24, 8))
+        tk.Label(self.body, textvariable=self.status_var, bg=COLORS["panel"], fg=COLORS["muted"], font=("Segoe UI", 9)).pack(anchor="w")
+        actions = tk.Frame(self.body, bg=COLORS["panel"])
+        actions.pack(side="bottom", fill="x", pady=(24, 0))
+        self.cancel_button = ttk.Button(actions, text="Cancel", command=self._close)
+        self.cancel_button.pack(side="left")
+        self.uninstall_button = ttk.Button(actions, text="Uninstall HoloCore", command=self._confirm)
+        self.uninstall_button.pack(side="right")
+
+    def _confirm(self) -> None:
+        confirmed = messagebox.askyesno(
+            "Uninstall HoloCore?",
+            "Remove the HoloCore application from this computer?\n\nYour Home, Knowledge, memories, and projects will be preserved.",
+            parent=self.root,
+        )
+        if not confirmed:
+            return
+        self.running = True
+        self.status_var.set("Removing HoloCore application files…")
+        self.cancel_button.configure(state="disabled")
+        self.uninstall_button.configure(state="disabled")
+        self.progress.start(10)
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def _run(self) -> None:
+        try:
+            result = uninstall_native_installation(self.install_dir)
+        except Exception as exc:
+            self.root.after(0, lambda detail=str(exc): self._failed(detail))
+            return
+        self.root.after(0, lambda: self._complete(result))
+
+    def _complete(self, result: dict[str, Any]) -> None:
+        self.running = False
+        self.progress.stop()
+        self.status_var.set("HoloCore was removed. Your data was preserved.")
+        self.uninstall_button.configure(text="Close", state="normal", command=self._close)
+        self.cancel_button.configure(state="disabled")
+
+    def _failed(self, detail: str) -> None:
+        self.running = False
+        self.progress.stop()
+        self.status_var.set("Uninstall needs attention")
+        self.cancel_button.configure(state="normal")
+        self.uninstall_button.configure(state="normal")
+        messagebox.showerror("HoloCore uninstall", detail, parent=self.root)
+
+    def _close(self) -> None:
+        if self.running:
+            return
+        if self.worker_path:
+            _queue_worker_cleanup(self.worker_path)
+        self.root.destroy()
 
 
 class NativeSetupApp:
@@ -196,6 +461,8 @@ class NativeSetupApp:
         style.map("Secondary.TButton", background=[("active", COLORS["soft"])])
         style.configure("Primary.TButton", background=COLORS["accent"], foreground="#FFFFFF", bordercolor=COLORS["accent"], font=("Segoe UI Semibold", 10), padding=(18, 9))
         style.map("Primary.TButton", background=[("active", COLORS["accent_hover"]), ("disabled", "#94A3B8")])
+        style.configure("NavAction.TButton", background=COLORS["navy_2"], foreground="#FFFFFF", bordercolor="#334155", font=("Segoe UI Semibold", 9), padding=(12, 8))
+        style.map("NavAction.TButton", background=[("active", "#334155")])
         style.configure("Horizontal.TProgressbar", background=COLORS["accent"], troughcolor=COLORS["soft"], bordercolor=COLORS["soft"])
 
     def _build_shell(self) -> None:
@@ -211,7 +478,9 @@ class NativeSetupApp:
             item = ttk.Label(nav, text=f"{index:02d}   {label}", style="NavIdle.TLabel")
             item.pack(fill="x", padx=12, pady=2)
             self.nav_labels.append(item)
-        ttk.Label(nav, text="No cloud account required.\nNo project content is uploaded.", style="NavText.TLabel", justify="left").pack(side="bottom", anchor="w", padx=24, pady=28)
+        ttk.Label(nav, text="No cloud account required.\nNo project content is uploaded.", style="NavText.TLabel", justify="left").pack(side="bottom", anchor="w", padx=24, pady=(12, 28))
+        self.uninstall_button = ttk.Button(nav, text="Uninstall HoloCore", style="NavAction.TButton", command=self._request_uninstall)
+        self.uninstall_button.pack(side="bottom", fill="x", padx=24)
 
         outer = ttk.Frame(self.root, style="Panel.TFrame")
         outer.grid(row=0, column=1, sticky="nsew")
@@ -447,6 +716,18 @@ class NativeSetupApp:
         messagebox.showerror("HoloCore setup", detail, parent=self.root)
         self.show_step(3)
 
+    def _request_uninstall(self) -> None:
+        if self.applying:
+            return
+        installed_setup = _default_install_dir() / "HoloCore Setup.exe"
+        source = installed_setup if installed_setup.is_file() else Path(sys.executable).resolve()
+        try:
+            stage_native_uninstaller(install_dir=_default_install_dir(), source_setup=source)
+        except OSError as exc:
+            messagebox.showerror("HoloCore uninstall", str(exc), parent=self.root)
+            return
+        self.root.destroy()
+
     def _close(self) -> None:
         if self.applying:
             if not messagebox.askyesno("Close setup?", "HoloCore is still applying your setup. Close anyway?", parent=self.root):
@@ -457,6 +738,13 @@ class NativeSetupApp:
 def launch_setup_app(*, home: str | Path | None = None, project: str | Path | None = None) -> int:
     root = tk.Tk()
     NativeSetupApp(root, home=home, project=project)
+    root.mainloop()
+    return 0
+
+
+def launch_uninstall_app(*, install_dir: str | Path, worker_path: str | Path | None = None) -> int:
+    root = tk.Tk()
+    NativeUninstallApp(root, install_dir=install_dir, worker_path=worker_path)
     root.mainloop()
     return 0
 
@@ -488,15 +776,67 @@ def run_native_ui_smoke_test() -> int:
         root.destroy()
 
 
+def run_native_uninstall_ui_smoke_test() -> int:
+    """Render the uninstaller without removing files."""
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        app = NativeUninstallApp(root, install_dir=_default_install_dir())
+        root.update_idletasks()
+        if root.title() != "Uninstall HoloCore" or app.uninstall_button.cget("text") != "Uninstall HoloCore":
+            return 1
+        app._complete({"uninstalled": True, "data_preserved": True})
+        root.update_idletasks()
+        return 0 if "data was preserved" in app.status_var.get() else 1
+    finally:
+        root.destroy()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="HoloCore Setup")
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--home")
     parser.add_argument("--project")
     parser.add_argument("--ui-smoke-test", action="store_true")
+    parser.add_argument("--uninstall-ui-smoke-test", action="store_true")
+    parser.add_argument("--embedded-install-smoke-test", action="store_true")
+    parser.add_argument("--uninstall", action="store_true")
+    parser.add_argument("--uninstall-worker", action="store_true")
+    parser.add_argument("--install-dir")
+    parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
     if args.ui_smoke_test:
         return run_native_ui_smoke_test()
+    if args.uninstall_ui_smoke_test:
+        return run_native_uninstall_ui_smoke_test()
+    if args.embedded_install_smoke_test:
+        destination = Path(args.install_dir or (Path(tempfile.gettempdir()) / "holocore-embedded-smoke")).resolve()
+        try:
+            result = install_embedded_release(install_dir=destination, configure_shell=False)
+            required = (destination / "holocore.exe", destination / "HoloCore Setup.exe", destination / "install.ps1")
+            return 0 if result.get("installed") and all(path.is_file() for path in required) else 1
+        finally:
+            if destination.is_dir():
+                shutil.rmtree(destination)
+    if args.uninstall_worker:
+        try:
+            if args.quiet:
+                uninstall_native_installation(args.install_dir)
+                _queue_worker_cleanup(Path(sys.executable).resolve())
+                return 0
+            return launch_uninstall_app(install_dir=args.install_dir or _default_install_dir(), worker_path=sys.executable)
+        except OSError:
+            return 1
+    if args.uninstall:
+        try:
+            stage_native_uninstaller(install_dir=args.install_dir, source_setup=sys.executable, quiet=args.quiet)
+        except OSError as exc:
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror("HoloCore uninstall", str(exc), parent=root)
+            root.destroy()
+            return 1
+        return 0
     try:
         install_embedded_release()
     except OSError as exc:
@@ -513,6 +853,8 @@ if __name__ == "__main__":
 
 
 __all__ = [
-    "NativeSetupApp", "initial_native_state", "install_embedded_release",
-    "launch_setup_app", "main", "resource_path", "run_native_ui_smoke_test",
+    "NativeSetupApp", "NativeUninstallApp", "initial_native_state", "install_embedded_release",
+    "launch_setup_app", "launch_uninstall_app", "main", "resource_path",
+    "run_native_ui_smoke_test", "run_native_uninstall_ui_smoke_test",
+    "stage_native_uninstaller", "uninstall_native_installation",
 ]
