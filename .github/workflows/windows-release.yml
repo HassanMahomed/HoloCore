@@ -35,7 +35,11 @@ jobs:
         shell: pwsh
         run: |
           $version = uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
-          if ($env:GITHUB_REF_NAME -ne "v$version") { throw "Tag $env:GITHUB_REF_NAME does not match package version $version" }
+          $stableTag = "v$version"
+          $releaseCandidatePattern = '^' + [regex]::Escape($stableTag) + '-rc\.[1-9][0-9]*$'
+          if ($env:GITHUB_REF_NAME -ne $stableTag -and $env:GITHUB_REF_NAME -notmatch $releaseCandidatePattern) {
+            throw "Tag $env:GITHUB_REF_NAME must be $stableTag or a numbered release candidate such as $stableTag-rc.1"
+          }
       - name: Build self-contained executable
         shell: pwsh
         run: >-
@@ -126,21 +130,23 @@ jobs:
             thumbprint = if ($signature.SignerCertificate) { $signature.SignerCertificate.Thumbprint } else { '' }
             subject = if ($signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { '' }
           }
-          @{ schema_version = 2; version = $version; tag = "v$version"; assets = $assets; signing = $signing } |
+          $releaseTag = if ($tagged) { $env:GITHUB_REF_NAME } else { "v$version" }
+          @{ schema_version = 2; version = $version; tag = $releaseTag; assets = $assets; signing = $signing } |
             ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 dist\release-manifest.json
       - name: Execute signed install lifecycle
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         run: |
           $version = (& .\dist\holocore-windows-x64.exe --version | Out-String).Trim()
+          $releaseTag = $env:GITHUB_REF_NAME
           $install = Join-Path $env:RUNNER_TEMP 'holocore-lifecycle-install'
           $lifecycleHome = Join-Path $env:RUNNER_TEMP 'holocore-lifecycle-home'
           $project = Join-Path $env:RUNNER_TEMP 'holocore-lifecycle-project'
-          & .\install.ps1 -Version $version -Yes -NoUI -InstallDir $install -ReleaseDirectory .\dist -SkipShellIntegration -Home $lifecycleHome -Project $project
+          & .\install.ps1 -Version $releaseTag -Yes -NoUI -InstallDir $install -ReleaseDirectory .\dist -SkipShellIntegration -Home $lifecycleHome -Project $project
           if ($LASTEXITCODE -ne 0) { throw 'Clean install lifecycle failed.' }
           & (Join-Path $install 'holocore.exe') --root $project --json status | Out-Host
           if ($LASTEXITCODE -ne 0) { throw 'Installed CLI status failed.' }
-          & .\install.ps1 -Version $version -Yes -UpgradeOnly -InstallDir $install -ReleaseDirectory .\dist -SkipShellIntegration -Home $lifecycleHome
+          & .\install.ps1 -Version $releaseTag -Yes -UpgradeOnly -InstallDir $install -ReleaseDirectory .\dist -SkipShellIntegration -Home $lifecycleHome
           if (-not (Test-Path -LiteralPath (Join-Path $install 'holocore.exe.previous'))) { throw 'Upgrade did not retain rollback engine.' }
           & .\install.ps1 -Rollback -InstallDir $install -SkipShellIntegration
           if ($LASTEXITCODE -ne 0) { throw 'Rollback lifecycle failed.' }
@@ -170,6 +176,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          prerelease: ${{ contains(github.ref_name, '-rc.') }}
           files: |
             dist/holocore-windows-x64.exe
             dist/holocore-windows-x64.exe.sha256

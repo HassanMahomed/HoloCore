@@ -54,4 +54,4 @@
 - CycloneDX SBOM generation and GitHub build provenance are part of the release workflow.
 - Tagged builds execute install, status, upgrade, rollback, uninstall, and data-preservation checks against the signed artifacts.
 - The built native Setup executable walks all four pages at scaled DPI and verifies its retry state.
-- Stable publication still requires configured GitHub signing secrets and two successful immutable release-candidate lifecycle runs with no open P0 or P1 defects.
+- Publish signed `v1.0.0-rc.1` and `v1.0.0-rc.2` prereleases first. Stable `v1.0.0` publication requires both immutable lifecycle runs to pass with no open P0 or P1 defects.

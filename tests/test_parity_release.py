@@ -48,6 +48,8 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
     assert "branches:" in workflow
     assert "uv sync --frozen" in workflow
     assert "Verify tag matches package version" in workflow
+    assert "releaseCandidatePattern" in workflow
+    assert "-rc\\.[1-9][0-9]*" in workflow
     assert "Execute built release artifacts" in workflow
     assert "Require release signing credentials" in workflow
     assert "signtool" in workflow
@@ -56,6 +58,9 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
     assert "actions/attest-build-provenance@v2" in workflow
     assert "Execute signed install lifecycle" in workflow
     assert "release-manifest.json" in workflow
+    assert '$releaseTag = if ($tagged) { $env:GITHUB_REF_NAME } else { "v$version" }' in workflow
+    assert "prerelease: ${{ contains(github.ref_name, '-rc.') }}" in workflow
+    assert "-Version $releaseTag" in workflow
     assert "releases/latest/download" not in installer
     assert "release-manifest.json" in installer
     assert "Test-DownloadedArtifact" in installer
