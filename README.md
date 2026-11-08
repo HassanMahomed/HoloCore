@@ -84,6 +84,8 @@ Hooks are installed automatically but require client trust once:
 
 ## One-line Windows install
 
+**Easiest option:** [Download HoloCore Setup.exe](https://github.com/HassanMahomed/HoloCore/releases/latest/download/holocore-setup-windows-x64.exe), double-click it, and follow the four setup screens. No Python or terminal is required. Because the free community build is not purchased from a certificate authority, Windows may show **Unknown publisher**; choose **More info**, confirm the file came from this GitHub repository, then choose **Run anyway**.
+
 Open PowerShell and run:
 
 ```powershell
@@ -94,7 +96,7 @@ The release includes a checksummed, standalone `holocore-setup-windows-x64.exe`.
 
 ![HoloCore native Windows setup application](docs/assets/holocore-native-setup.png)
 
-The downloadable Windows executable and checksum are also available on the [GitHub Releases page](https://github.com/HassanMahomed/HoloCore/releases). See the [Windows installation guide](docs/windows-installation.md) for unattended options, upgrades, and removal.
+The downloadable Windows executables, checksums, SBOM, and build-provenance records are also available on the [GitHub Releases page](https://github.com/HassanMahomed/HoloCore/releases). See the [Windows installation guide](docs/windows-installation.md) for unattended options, upgrades, and removal.
 
 ## Developer install
 
@@ -244,6 +246,8 @@ Raw chats and Memories can contain sensitive information. HoloCore excludes thei
 ## License and development
 
 HoloCore is free and open-source software licensed under the [GNU General Public License v3.0 only](LICENSE). Anyone may use, study, fork, and modify it. If you distribute HoloCore or a modified version, you must provide the corresponding source code under GPLv3 and preserve the same freedoms for recipients. Private modifications do not have to be published. Contributions and improvements are welcome. Third-party behavioral inspirations and their licenses are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Official Windows releases follow the [code signing policy](docs/code-signing-policy.md). HoloCore intends to apply for free open-source signing through SignPath Foundation; until acceptance and integration are complete, community executables are identified as unsigned and protected by release checksums and GitHub provenance.
 
 Development verification:
 

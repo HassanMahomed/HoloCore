@@ -6,7 +6,7 @@
 | v0.17 | Complete memory UI and research/architecture workflows | Implemented in source |
 | v0.18 | Recoverable setup, migrations, and native Windows lifecycle | Implemented in source |
 | v0.19 | Plain-language migration and release supply-chain hardening | Implemented in source |
-| v1.0 | Stable contracts, signed artifacts, and complete acceptance coverage | Release candidate |
+| v1.0 | Stable contracts, verified artifacts, and complete acceptance coverage | Release candidate |
 
 ## v0.16 exit criteria
 
@@ -35,7 +35,7 @@
 
 - Freeze and publish CLI, MCP, storage, and upgrade compatibility contracts.
 - Add explicit persistent-data migrations, backup, interruption recovery, and version fixture coverage.
-- Harden installation, update, rollback, checksum/signature verification, and native uninstall.
+- Harden installation, update, rollback, checksum verification, optional signature verification, and native uninstall.
 - Execute clean-machine acceptance coverage against the exact release artifacts users install.
 
 ### Implemented stabilization foundations
@@ -50,8 +50,8 @@
 
 ### v1.0 release-candidate verification
 
-- Authenticode signing and installer signature enforcement are mandatory for tags.
+- SHA-256 verification, SBOM generation, and provenance are mandatory for tags. Authenticode signing remains an optional future enhancement.
 - CycloneDX SBOM generation and GitHub build provenance are part of the release workflow.
-- Tagged builds execute install, status, upgrade, rollback, uninstall, and data-preservation checks against the signed artifacts.
+- Tagged builds execute install, status, upgrade, rollback, uninstall, and data-preservation checks against the exact published artifacts.
 - The built native Setup executable walks all four pages at scaled DPI and verifies its retry state.
-- Publish signed `v1.0.0-rc.1` and `v1.0.0-rc.2` prereleases first. Stable `v1.0.0` publication requires both immutable lifecycle runs to pass with no open P0 or P1 defects.
+- Publish checksum-verified `v1.0.0-rc.1` and `v1.0.0-rc.2` prereleases first. Stable `v1.0.0` publication requires both immutable lifecycle runs to pass with no open P0 or P1 defects.

@@ -16,7 +16,7 @@ Project retrieval stays scoped to the active project plus intentionally Shared K
 
 ## Native setup
 
-![Signed installation selects one Home, registers a project, detects local AI tools, and asks for explicit client trust](assets/workflow-install-ai.svg)
+![Native installation selects one Home, registers a project, detects local AI tools, and asks for explicit client trust](assets/workflow-install-ai.svg)
 
 The Windows setup application has four pages:
 
@@ -53,16 +53,15 @@ At safe transcript checkpoints HoloCore reads only new conversation content, pre
 
 ## Release verification
 
-![The v1 release gate verifies Code Map, Memories, Knowledge, tests, native UI, signed artifacts, installation, upgrade, rollback, uninstall, and SBOM](assets/workflow-parity-release.svg)
+![The v1 release gate verifies Code Map, Memories, Knowledge, tests, native UI, checksums, installation, upgrade, rollback, uninstall, SBOM, and provenance](assets/workflow-parity-release.svg)
 
 A stable tagged build must pass:
 
 - the complete source test suite;
 - built CLI and native Setup version checks;
 - a native four-page UI smoke test at scaled DPI;
-- Authenticode signing and signature verification;
 - immutable manifest and SHA-256 verification;
-- signed install, status, upgrade, rollback, uninstall, and data-preservation checks;
+- install, status, upgrade, rollback, uninstall, and data-preservation checks against the exact release artifacts;
 - reproducible CycloneDX SBOM generation and GitHub build-provenance attestation.
 
 ## Compatibility vocabulary

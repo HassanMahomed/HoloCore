@@ -63,12 +63,13 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
     assert "releaseCandidatePattern" in workflow
     assert "-rc\\.[1-9][0-9]*" in workflow
     assert "Execute built release artifacts" in workflow
-    assert "Require release signing credentials" in workflow
+    assert "Detect optional release signing credentials" in workflow
+    assert "Publishing a checksum-verified community release" in workflow
     assert "signtool" in workflow
     assert "--ui-smoke-test" in workflow
     assert "holocore-sbom.cdx.json" in workflow
     assert "actions/attest-build-provenance@v2" in workflow
-    assert "Execute signed install lifecycle" in workflow
+    assert "Execute release install lifecycle" in workflow
     assert "release-manifest.json" in workflow
     assert '$releaseTag = if ($tagged) { $env:GITHUB_REF_NAME } else { "v$version" }' in workflow
     assert "prerelease: ${{ contains(github.ref_name, '-rc.') }}" in workflow
@@ -77,6 +78,8 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
     assert "release-manifest.json" in installer
     assert "Test-DownloadedArtifact" in installer
     assert "Assert-AuthenticodeSignature" in installer
+    assert 'if ($manifest.signing.required -eq $true)' in installer
+    assert "community release is not Authenticode signed" in installer
     assert "Invoke-HoloCoreRollback" in installer
     assert "ReleaseDirectory" in installer
     assert "checksum was unavailable" not in installer

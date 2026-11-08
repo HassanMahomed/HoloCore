@@ -13,7 +13,7 @@ irm https://github.com/HassanMahomed/HoloCore/releases/latest/download/install.p
 The installer:
 
 1. Downloads the latest `holocore-windows-x64.exe` from the official GitHub release.
-2. Downloads the immutable release manifest, requires matching SHA-256 checksums, and verifies the Authenticode signer for both executables.
+2. Downloads the immutable release manifest and requires matching SHA-256 checksums for both executables. If a future release is Authenticode signed, it also verifies that signer.
 3. Installs HoloCore under `%LOCALAPPDATA%\Programs\HoloCore` and adds that folder to the user PATH.
 4. Installs and opens the native **HoloCore Setup** Windows application.
 5. Lets you choose the HoloCore Home and first project with a native folder picker.
@@ -39,8 +39,7 @@ To install one exact release instead of the latest release:
 & .\install.ps1 -Version 1.0.0 -Yes
 ```
 
-Installation stops before replacing any existing executable if the release manifest is unavailable, malformed, for another tag, or contains a checksum that does not match the downloaded artifact.
-It also stops if either executable is unsigned, has an invalid signature, or was signed by a certificate other than the one recorded in the release manifest.
+Installation stops before replacing any existing executable if the release manifest is unavailable, malformed, for another tag, or contains a checksum that does not match the downloaded artifact. Community releases are checksum-verified but may be unsigned, so Windows can show **Unknown publisher**. Confirm that the download URL is this repository, select **More info**, and then select **Run anyway**. If a release manifest declares signing, installation also stops for a missing, invalid, or mismatched signature.
 
 ## Non-interactive installation
 
@@ -93,7 +92,9 @@ To exchange the current and retained previous release without touching HoloCore 
 & "$env:LOCALAPPDATA\Programs\HoloCore\install.ps1" -Rollback
 ```
 
-Each tagged release also publishes `holocore-sbom.cdx.json` and GitHub build provenance attestations alongside the signed executables, checksums, manifest, and installer.
+Each tagged release also publishes `holocore-sbom.cdx.json` and GitHub build provenance attestations alongside the executables, checksums, manifest, and installer.
+
+HoloCore intends to use the free SignPath Foundation program for qualifying open-source projects. Until the project is accepted and its trusted-build integration is active, Windows releases remain clearly identified as unsigned community builds. See the [code signing policy](code-signing-policy.md).
 
 ## Lightweight automatic updates
 
