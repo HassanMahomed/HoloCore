@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
   <title id="title">HoloCore feature parity and release workflow</title>
-  <desc id="desc">A release workflow showing Code Map, Memories, and Knowledge verification feeding signed artifact and lifecycle gates.</desc>
+  <desc id="desc">A release workflow showing Code Map, Memories, and Knowledge verification feeding checksum, provenance, and lifecycle gates.</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#12243d"/></linearGradient>
     <filter id="shadow"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#020617" flood-opacity=".45"/></filter>
@@ -32,8 +32,8 @@
   <path d="M250 430v74M700 430v74M1150 430v74" stroke="#38bdf8" stroke-width="4" marker-end="url(#arrow)"/>
   <g filter="url(#shadow)" font-family="Segoe UI,Arial,sans-serif">
     <rect x="200" y="520" width="1000" height="150" rx="24" fill="#0f172a" stroke="#f59e0b" stroke-width="3"/>
-    <text x="250" y="575" fill="#fbbf24" font-size="27" font-weight="700">4 · Signed v1 release gate</text>
+    <text x="250" y="575" fill="#fbbf24" font-size="27" font-weight="700">4 · Verified v1 release gate</text>
     <text x="250" y="614" fill="#f8fafc" font-size="19">Tests · UI · install · upgrade · rollback · uninstall · SBOM</text>
-    <text x="250" y="646" fill="#cbd5e1" font-size="17">Only signed, version-bound artifacts that pass the complete lifecycle are published.</text>
+    <text x="250" y="646" fill="#cbd5e1" font-size="17">Only checksummed, version-bound artifacts that pass the complete lifecycle are published.</text>
   </g>
 </svg>

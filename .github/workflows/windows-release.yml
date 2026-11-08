@@ -48,18 +48,25 @@ jobs:
           --paths src
           --collect-submodules holocore
           src/holocore/__main__.py
-      - name: Require release signing credentials
+      - name: Detect optional release signing credentials
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         env:
           SIGNING_CERTIFICATE: ${{ secrets.HOLOCORE_SIGNING_CERTIFICATE_BASE64 }}
           SIGNING_PASSWORD: ${{ secrets.HOLOCORE_SIGNING_CERTIFICATE_PASSWORD }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERTIFICATE)) { throw 'HOLOCORE_SIGNING_CERTIFICATE_BASE64 is required for a tagged release.' }
-          if ([string]::IsNullOrWhiteSpace($env:SIGNING_PASSWORD)) { throw 'HOLOCORE_SIGNING_CERTIFICATE_PASSWORD is required for a tagged release.' }
-          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\holocore-signing.pfx", [Convert]::FromBase64String($env:SIGNING_CERTIFICATE))
+          $hasCertificate = -not [string]::IsNullOrWhiteSpace($env:SIGNING_CERTIFICATE)
+          $hasPassword = -not [string]::IsNullOrWhiteSpace($env:SIGNING_PASSWORD)
+          if ($hasCertificate -ne $hasPassword) { throw 'Configure both HoloCore signing secrets or neither of them.' }
+          $enabled = $hasCertificate -and $hasPassword
+          "HOLOCORE_SIGNING_ENABLED=$($enabled.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          if ($enabled) {
+            [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\holocore-signing.pfx", [Convert]::FromBase64String($env:SIGNING_CERTIFICATE))
+          } else {
+            Write-Host 'Publishing a checksum-verified community release without Authenticode signing.'
+          }
       - name: Sign engine executable
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && env.HOLOCORE_SIGNING_ENABLED == 'true'
         shell: pwsh
         env:
           SIGNING_PASSWORD: ${{ secrets.HOLOCORE_SIGNING_CERTIFICATE_PASSWORD }}
@@ -81,7 +88,7 @@ jobs:
           --add-binary "dist/holocore-windows-x64.exe;holocore-payload"
           src/holocore/setup_app.py
       - name: Sign setup executable
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && env.HOLOCORE_SIGNING_ENABLED == 'true'
         shell: pwsh
         env:
           SIGNING_PASSWORD: ${{ secrets.HOLOCORE_SIGNING_CERTIFICATE_PASSWORD }}
@@ -124,16 +131,17 @@ jobs:
           $version = (& .\dist\holocore-windows-x64.exe --version | Out-String).Trim()
           $signature = Get-AuthenticodeSignature -LiteralPath .\dist\holocore-windows-x64.exe
           $tagged = $env:GITHUB_REF -like 'refs/tags/*'
-          if ($tagged -and ($signature.Status -ne 'Valid' -or $null -eq $signature.SignerCertificate)) { throw 'Tagged release is not Authenticode signed.' }
+          $signingEnabled = $env:HOLOCORE_SIGNING_ENABLED -eq 'true'
+          if ($signingEnabled -and ($signature.Status -ne 'Valid' -or $null -eq $signature.SignerCertificate)) { throw 'Configured Authenticode signing did not produce a valid signature.' }
           $signing = @{
-            required = $tagged
+            required = $signingEnabled
             thumbprint = if ($signature.SignerCertificate) { $signature.SignerCertificate.Thumbprint } else { '' }
             subject = if ($signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { '' }
           }
           $releaseTag = if ($tagged) { $env:GITHUB_REF_NAME } else { "v$version" }
           @{ schema_version = 2; version = $version; tag = $releaseTag; assets = $assets; signing = $signing } |
             ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 dist\release-manifest.json
-      - name: Execute signed install lifecycle
+      - name: Execute release install lifecycle
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         run: |

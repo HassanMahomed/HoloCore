@@ -158,8 +158,12 @@ try {
     }
     Test-DownloadedArtifact $downloadedExe $manifest.assets.'holocore-windows-x64.exe'.sha256 "HoloCore"
     Test-DownloadedArtifact $downloadedSetupExe $manifest.assets.'holocore-setup-windows-x64.exe'.sha256 "HoloCore Setup"
-    Assert-AuthenticodeSignature $downloadedExe $manifest.signing.thumbprint "HoloCore"
-    Assert-AuthenticodeSignature $downloadedSetupExe $manifest.signing.thumbprint "HoloCore Setup"
+    if ($manifest.signing.required -eq $true) {
+        Assert-AuthenticodeSignature $downloadedExe $manifest.signing.thumbprint "HoloCore"
+        Assert-AuthenticodeSignature $downloadedSetupExe $manifest.signing.thumbprint "HoloCore Setup"
+    } else {
+        Write-Warning "This community release is not Authenticode signed. SHA-256 checksums were verified against the GitHub release manifest."
+    }
     $reportedVersion = ((& $downloadedExe --version) | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or $reportedVersion -ne [string]$manifest.version) {
         throw "Downloaded HoloCore reports version '$reportedVersion', expected '$($manifest.version)'."

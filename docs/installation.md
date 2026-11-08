@@ -1,6 +1,6 @@
 # Install and connect HoloCore v1
 
-![HoloCore signed installation selects one private Home, registers a project, and connects selected AI clients](assets/workflow-install-ai.svg)
+![HoloCore native installation selects one private Home, registers a project, and connects selected AI clients](assets/workflow-install-ai.svg)
 
 HoloCore uses one user-selected **HoloCore Home** for verified Knowledge, project Code Maps, Memories, chat history, generated AI connections, and the project registry.
 

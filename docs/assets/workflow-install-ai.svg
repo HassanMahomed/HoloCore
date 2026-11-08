@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
-  <title id="title">HoloCore signed installation, Home selection, project setup, and AI-client approval</title>
+  <title id="title">HoloCore native installation, Home selection, project setup, and AI-client approval</title>
   <desc id="desc">Verify and install HoloCore, choose one private Home, register a project, create Knowledge, Code Map and Memories state, connect selected AI clients, then approve local access.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#12342f"/></linearGradient>
@@ -9,12 +9,12 @@
   </defs>
   <rect width="1200" height="675" fill="url(#bg)"/>
   <text x="60" y="58" class="f t">Install once, choose one Home, connect every project</text>
-  <text x="60" y="87" class="f p">Signed setup keeps Knowledge, Code Maps, Memories, chats, and AI connections local.</text>
+  <text x="60" y="87" class="f p">Native setup keeps Knowledge, Code Maps, Memories, chats, and AI connections local.</text>
 
   <g filter="url(#s)">
     <rect x="45" y="130" width="205" height="125" rx="16" fill="#173456" stroke="#38bdf8"/>
     <text x="147" y="170" text-anchor="middle" class="f h">1. Install</text>
-    <text x="147" y="201" text-anchor="middle" class="f p">signed Windows setup</text>
+    <text x="147" y="201" text-anchor="middle" class="f p">native Windows setup</text>
     <text x="147" y="228" text-anchor="middle" class="f n">checksum + signer verified</text>
   </g>
   <path d="M250 192H285" class="l"/>
