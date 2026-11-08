@@ -51,6 +51,7 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
 
     assert "--windowed" in workflow
     assert "holocore-setup-windows-x64" in workflow
+    assert workflow.count("--icon docs/assets/holocore-icon.ico") == 2
     assert "src/holocore/setup_app.py" in workflow
     assert "--add-binary" in workflow
     assert "holocore-payload" in workflow

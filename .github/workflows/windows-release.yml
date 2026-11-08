@@ -45,6 +45,7 @@ jobs:
         run: >-
           uv run --with pyinstaller==6.16.0 pyinstaller --clean --noconfirm --onefile
           --name holocore-windows-x64
+          --icon docs/assets/holocore-icon.ico
           --paths src
           --collect-submodules holocore
           src/holocore/__main__.py
@@ -82,6 +83,7 @@ jobs:
         run: >-
           uv run --with pyinstaller==6.16.0 pyinstaller --clean --noconfirm --onefile --windowed
           --name holocore-setup-windows-x64
+          --icon docs/assets/holocore-icon.ico
           --paths src
           --collect-submodules holocore
           --add-data "docs/assets/holocore-icon.png;holocore-assets"
