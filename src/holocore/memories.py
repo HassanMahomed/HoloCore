@@ -14,7 +14,6 @@ from typing import Any, Iterable, Mapping
 
 from .sqlite_connections import ThreadConnections
 
-
 SCHEMA_VERSION = 4
 MERGE_BATCH = 500  # Rows per commit when merging a legacy database.
 

@@ -18,9 +18,16 @@ from .config import Config
 from .connection_health import check_client_connection, last_captures
 from .folder_layout import HomeLayout
 from .home import HomeManager
+from .home_backup import (
+    BackupError,
+    configure_schedule,
+    create_home_backup,
+    disable_schedule,
+    preview_home_restore,
+    restore_home_backup,
+    schedule_status,
+)
 from .install import inspect_client_connections
-from .home_backup import (BackupError, configure_schedule, create_home_backup, disable_schedule,
-                          preview_home_restore, restore_home_backup, schedule_status)
 from .storage import storage_status
 
 CONFIGURATION_LABELS = {"connected": "Configured", "needs-connection": "Not configured",

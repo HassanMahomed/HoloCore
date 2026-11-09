@@ -7,6 +7,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+from . import __version__
+from .archive_promote import promote_sources
+from .archive_source import sync_archive_source
 from .config import Config
 from .engine import HoloCoreEngine
 from .home import HomeManager
@@ -14,10 +17,6 @@ from .layout import format_paths, world_paths
 from .lifecycle import installation_check, sync_all, uninstall_tool, update_install
 from .memories import MemoryStore
 from .memory_collection import CollectionOptions, MemoryCollector
-from .archive_source import sync_archive_source
-from .archive_promote import promote_sources
-from . import __version__
-
 
 PLATFORMS = ("claude", "codex", "gemini", "cursor", "opencode", "generic")
 
@@ -513,7 +512,11 @@ def main() -> int:
         print(json.dumps(value, indent=2, default=str))
         return 0
     if args.command == "watch":
-        from .obsidian_watch import install_windows_task, uninstall_windows_task, watch_home
+        from .obsidian_watch import (
+            install_windows_task,
+            uninstall_windows_task,
+            watch_home,
+        )
         home = HomeManager(args.home).home if args.home else HomeManager().home
         if args.uninstall:
             value = uninstall_windows_task()
@@ -547,7 +550,9 @@ def main() -> int:
             print(f"HoloCore updated. Reconciled {reconciliation['updated']} of {reconciliation['count']} Worlds.")
         return 0
     if args.command == "auto-update":
-        from .auto_update import configure as configure_auto_update, maybe_check, status as auto_update_status
+        from .auto_update import configure as configure_auto_update
+        from .auto_update import maybe_check
+        from .auto_update import status as auto_update_status
         home = HomeManager().home
         if args.enable:
             value = configure_auto_update(home, enabled=True)
