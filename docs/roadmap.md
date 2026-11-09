@@ -47,9 +47,7 @@ The first v1.2 milestone is measurable performance improvement. Establish baseli
 
 - Provide compact, source-labelled packs for fixing a bug, continuing previous work, and explaining a feature or code area.
 
-The [HoloCore Board](obsidian-board.md) Obsidian plugin shipped in v1.1.0 and is installed per vault by Setup. v1.2 can extend its read-only view with the performance and review workflows above.
-
-The [HoloCore Board](obsidian-board.md) Obsidian plugin, a read-only flow board of projects, AI sessions, memories, and changed files, shipped in v1.1.0 and is installed per vault by Setup.
+The [HoloCore Board](obsidian-board.md) Obsidian plugin, a read-only flow board of projects, AI sessions, memories, and changed files, shipped in v1.1.0 and is installed per vault by Setup. v1.2 can extend it with the performance and review workflows above.
 
 ## v1.3 — Notion and collaborative handoffs
 
