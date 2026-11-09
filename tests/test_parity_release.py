@@ -53,6 +53,8 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
     assert "holocore-setup-windows-x64" in workflow
     assert workflow.count("--icon docs/assets/holocore-icon.ico") == 2
     assert '--add-data "install.ps1;holocore-assets"' in workflow
+    assert workflow.count('--add-data "src/holocore/obsidian_plugin;holocore/obsidian_plugin"') == 2  # Engine and Setup.
+    assert "obsidian-plugin install --vault" in workflow
     assert "src/holocore/setup_app.py" in workflow
     assert "--add-binary" in workflow
     assert "holocore-payload" in workflow
@@ -95,6 +97,11 @@ def test_windows_release_builds_cli_and_native_setup_assets() -> None:
     assert "Uninstall HoloCore.lnk" in installer
     assert "QuietUninstallString" in installer
     assert 'Arguments = "--uninstall"' in installer
+    assert "HoloCore Control Centre.lnk" in installer
+    assert 'Arguments = "--desktop"' in installer
+    assert "Control Centre shortcut was not created" in workflow
+    assert "Uninstall left the Control Centre shortcut behind" in workflow
+    assert "holocore-icon-48.png;holocore-assets" in workflow
     assert "Installed Apps registration has the wrong version" in workflow
     assert "Uninstall left the Installed Apps registration behind" in workflow
 

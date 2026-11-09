@@ -11,7 +11,7 @@ import json
 import os
 import re
 import tempfile
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -120,6 +120,9 @@ def _ensure_ai_preamble(body: str) -> str:
     return f"## For future Claude\n{summary}\n\n{clean}"
 
 
+_is_junction = getattr(os.path, "isjunction", lambda _path: False)
+
+
 class Archive:
     """A bounded, local-only Markdown Archive rooted at ``vault``."""
 
@@ -226,13 +229,23 @@ class Archive:
             return [], False
         notes: list[Path] = []
         for root, dirs, files in os.walk(self.vault, followlinks=False):
-            dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not (Path(root) / d).is_symlink()]
+            # Windows junctions (e.g. the legacy Worlds alias) are not symlinks
+            # but would still make every aliased note appear twice.
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not (Path(root) / d).is_symlink()
+                       and not _is_junction(Path(root) / d)]
             for name in files:
                 path = Path(root) / name
                 if path.suffix.casefold() == ".md" and not path.is_symlink():
                     notes.append(path)
         notes.sort(key=lambda path: (-path.stat().st_mtime_ns, path.relative_to(self.vault).as_posix().casefold()))
         return notes[: self.max_files], len(notes) > self.max_files
+
+    def list_notes(self, limit: int | None = None) -> list[dict[str, Any]]:
+        """List notes newest first without reading their contents."""
+        notes, _ = self._notes()
+        return [{"path": path.relative_to(self.vault).as_posix(), "title": path.stem,
+                 "modified": datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat()}
+                for path in (notes if limit is None else notes[:limit])]
 
     def _read_text(self, path: Path, cap: int) -> str | None:
         try:

@@ -220,7 +220,11 @@ class HoloCoreEngine:
         return {"added": added, "deduplicated": deduplicated}
     def remember(self, content: str, sector: str = "general", source: str = "") -> dict:
         self.router.ensure_memory_scope()
-        shard = self.router.memories.ingest(content, world=self.router.world_id, sector=sector, source_ref=source or "manual"); self._cache.clear(); return {"id": shard.id, "created": shard.action == "inserted", "deduplicated": shard.action in {"deduplicated", "unchanged"}, "action": shard.action}
+        # A memory's record is keyed by (source, chunk_index), so a fixed chunk_index made each new
+        # detail from a source replace the last. Deriving it from the content keeps every detail and
+        # the source unchanged, and the same detail from the same source is still a duplicate.
+        chunk = int(hashlib.sha256(content.encode("utf-8")).hexdigest()[:12], 16)
+        shard = self.router.memories.ingest(content, world=self.router.world_id, sector=sector, source_ref=source or "manual", chunk_index=chunk); self._cache.clear(); return {"id": shard.id, "created": shard.action == "inserted", "deduplicated": shard.action in {"deduplicated", "unchanged"}, "action": shard.action}
     def _promote_extraction(self, extraction, source: str) -> dict:
         useful = bool(extraction.decisions or extraction.facts or len(extraction.summary.strip()) >= 40)
         if not useful:

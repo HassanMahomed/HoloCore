@@ -7,11 +7,12 @@ import json
 import re
 import sqlite3
 import uuid
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
+
+from .sqlite_connections import ThreadConnections
 
 
 _TERMINAL_EVENTS = {"sessionend", "session_end"}
@@ -138,18 +139,21 @@ class ActivityLedger:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._connections = ThreadConnections(self._connect, self.path)
         self._initialize()
 
-    @contextmanager
-    def _connection(self):
+    def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=30)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
-        try:
-            with db:
-                yield db
-        finally:
-            db.close()
+        return db
+
+    def _connection(self):
+        return self._connections.transaction()
+
+    def close(self) -> None:
+        """Close this thread's reused database connection."""
+        self._connections.close()
 
     def _initialize(self) -> None:
         with self._connection() as db:

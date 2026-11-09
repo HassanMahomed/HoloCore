@@ -4,13 +4,23 @@
 
 ![HoloCore Context Engine icon](docs/assets/holocore-icon.png)
 
-**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `1.0.0` brings the Memories workspace, semantic Code Map, guided research and architecture workflows, native Windows setup, recoverable upgrades, and plain-language integrations into one supported release line.
+**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `1.1.0` adds a desktop Control Centre, Home backups and restore, the Obsidian Board, stronger SQLite reliability, and keeps PowerShell installation as the primary Windows path.
 
 ![HoloCore checks project readiness, uses the Code Map and Knowledge, recalls prior work when relevant, and sends focused context to reduce input tokens](docs/assets/holocore-context-engine-token-savings.png)
 
 ![HoloCore Home and project storage model](docs/assets/holocore-home-world-structure.svg)
 
 The runtime is HoloCore-native. It does not import, launch, or require the original Obsidian Second Brain, Graphify, or MemPalace applications. Those projects were behavioral references for the rewrite and are not runtime components.
+
+## Current release: v1.1.0
+
+The [v1.1.0 release notes](docs/v1.1.0.md) describe what ships. The [roadmap](docs/roadmap.md)
+keeps conversation cleanup, incremental background controls, quality measurements,
+memory review, and task context packs in the next development phase. Obsidian and
+Notion integrations use the same HoloCore service foundation.
+
+From a source checkout, run `holocore desktop` to open the native control centre.
+The Setup application also offers **Open control centre**.
 
 ## In simple terms
 
@@ -82,19 +92,19 @@ Hooks are installed automatically but require client trust once:
 - In Claude Code, restart the project and use `/mcp` to approve or confirm the HoloCore server.
 - In Codex, restart or reopen the project and use `/hooks` to review and trust the HoloCore Stop hook.
 
-## One-line Windows install
+## Windows install
 
-**Easiest option:** [Download HoloCore Setup.exe](https://github.com/HassanMahomed/HoloCore/releases/latest/download/holocore-setup-windows-x64.exe), double-click it, and follow the four setup screens. No Python or terminal is required. Because the free community build is not purchased from a certificate authority, Windows may show **Unknown publisher**; choose **More info**, confirm the file came from this GitHub repository, then choose **Run anyway**.
-
-Open PowerShell and run:
+**Primary method — PowerShell:** open PowerShell and run:
 
 ```powershell
 irm https://github.com/HassanMahomed/HoloCore/releases/latest/download/install.ps1 | iex
 ```
 
-The release includes a checksummed, standalone `holocore-setup-windows-x64.exe`. Double-click it to install the embedded HoloCore engine and open **HoloCore Setup** as a normal Windows desktop window—no terminal, browser, or Python installation required. It lets you choose HoloCore Home, select a first project and optional features, review detected AI clients and Ollama models, and inspect the exact resolved paths before applying anything. Start menu shortcuts let you reopen Setup or launch **Uninstall HoloCore**, and HoloCore also appears under **Windows Settings → Apps → Installed apps**. The PowerShell one-liner remains available for unattended and managed deployment.
+**Alternative — standalone Setup EXE:** [download HoloCore Setup](https://github.com/HassanMahomed/HoloCore/releases/latest/download/holocore-setup-windows-x64.exe), double-click it, and follow the setup screens. The checksummed executable carries the HoloCore engine and opens the native first-run setup without Python or a terminal. After setup, it opens the Control Centre in the same app; later launches go straight to the Control Centre, where Setup remains available. It lets you choose HoloCore Home, select a first project and optional features, review detected AI clients and Ollama models, and inspect the planned paths before applying. HoloCore appears under **Windows Settings → Apps → Installed apps**. Windows may show **Unknown publisher** for this unsigned community build. Confirm that you downloaded it from this repository before choosing **More info → Run anyway**.
 
-![HoloCore native Windows setup application](docs/assets/holocore-native-setup.png)
+An MSI installer is being considered for a future release; it is not available yet. Packaging as MSI alone would not remove Windows publisher warnings for direct downloads.
+
+![HoloCore desktop Control Centre showing projects, knowledge, Memories, and AI connections](docs/assets/holocore-control-centre.jpg)
 
 The downloadable Windows executables, checksums, SBOM, and build-provenance records are also available on the [GitHub Releases page](https://github.com/HassanMahomed/HoloCore/releases). See the [Windows installation guide](docs/windows-installation.md) for unattended options, upgrades, and removal.
 

@@ -99,6 +99,13 @@ function Install-HoloCoreShellIntegration([string]$DisplayVersion) {
     $setupShortcut.Description = "Configure HoloCore folders, AI tools, features, and local models"
     $setupShortcut.Save()
 
+    $desktopShortcut = $shell.CreateShortcut((Join-Path $startMenu "HoloCore Control Centre.lnk"))
+    $desktopShortcut.TargetPath = $setupExePath
+    $desktopShortcut.Arguments = "--desktop"
+    $desktopShortcut.WorkingDirectory = $installDir
+    $desktopShortcut.Description = "Browse HoloCore projects, knowledge, memories, and AI connections"
+    $desktopShortcut.Save()
+
     $uninstallShortcut = $shell.CreateShortcut((Join-Path $startMenu "Uninstall HoloCore.lnk"))
     $uninstallShortcut.TargetPath = $setupExePath
     $uninstallShortcut.Arguments = "--uninstall"
@@ -128,7 +135,7 @@ function Install-HoloCoreShellIntegration([string]$DisplayVersion) {
 function Remove-HoloCoreShellIntegration {
     Remove-FromUserPath $installDir
     $startMenu = [Environment]::GetFolderPath("Programs")
-    foreach ($name in @("HoloCore Setup.lnk", "Uninstall HoloCore.lnk")) {
+    foreach ($name in @("HoloCore Setup.lnk", "Uninstall HoloCore.lnk", "HoloCore Control Centre.lnk")) {
         $shortcutPath = Join-Path $startMenu $name
         if (Test-Path -LiteralPath $shortcutPath) { Remove-Item -LiteralPath $shortcutPath -Force }
     }

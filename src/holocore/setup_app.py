@@ -17,6 +17,7 @@ from typing import Any
 
 from holocore import __version__
 from holocore.home import HomeManager
+from holocore.obsidian_plugin import obsidian_vaults, remove_from_all_vaults
 from holocore.setup_wizard import (
     CLIENT_NAMES,
     apply_setup,
@@ -37,6 +38,7 @@ CLIENT_LABELS = {
 }
 
 UNINSTALL_REGISTRY_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\HoloCore"
+CONTROL_CENTRE_SHORTCUT = "HoloCore Control Centre.lnk"
 
 
 def _copy_if_changed(source: Path, target: Path) -> bool:
@@ -81,6 +83,7 @@ def _configure_windows_shell(
     programs = _programs_dir()
     shortcut = programs / "HoloCore Setup.lnk"
     uninstall_shortcut = programs / "Uninstall HoloCore.lnk"
+    desktop_shortcut = programs / CONTROL_CENTRE_SHORTCUT
     quote = lambda value: "'" + str(value).replace("'", "''") + "'"
     script = (
         "$w=New-Object -ComObject WScript.Shell;"
@@ -88,6 +91,11 @@ def _configure_windows_shell(
         "$s.TargetPath=" + quote(setup_executable) + ";"
         "$s.WorkingDirectory=" + quote(install_dir) + ";"
         "$s.Description='Configure HoloCore folders, AI tools, features, and local models';$s.Save();"
+        "$c=$w.CreateShortcut(" + quote(desktop_shortcut) + ");"
+        "$c.TargetPath=" + quote(setup_executable) + ";"
+        "$c.Arguments='--desktop';"
+        "$c.WorkingDirectory=" + quote(install_dir) + ";"
+        "$c.Description='Browse HoloCore projects, knowledge, memories, and AI connections';$c.Save();"
         "$u=$w.CreateShortcut(" + quote(uninstall_shortcut) + ");"
         "$u.TargetPath=" + quote(setup_executable) + ";"
         "$u.Arguments='--uninstall';"
@@ -123,6 +131,7 @@ def _configure_windows_shell(
         "path_changed": path_changed,
         "shortcut": str(shortcut),
         "uninstall_shortcut": str(uninstall_shortcut),
+        "desktop_shortcut": str(desktop_shortcut),
         "registry_key": rf"HKCU\{UNINSTALL_REGISTRY_KEY}",
     }
 
@@ -146,7 +155,8 @@ def _remove_windows_shell_integration(install_dir: Path) -> dict[str, Any]:
             path_changed = True
 
     removed: list[str] = []
-    for shortcut in (_programs_dir() / "HoloCore Setup.lnk", _programs_dir() / "Uninstall HoloCore.lnk"):
+    for shortcut in (_programs_dir() / "HoloCore Setup.lnk", _programs_dir() / "Uninstall HoloCore.lnk",
+                     _programs_dir() / CONTROL_CENTRE_SHORTCUT):
         if shortcut.exists():
             shortcut.unlink()
             removed.append(str(shortcut))
@@ -181,10 +191,11 @@ def uninstall_native_installation(install_dir: str | Path | None = None) -> dict
     destination = Path(install_dir or _default_install_dir()).resolve()
     _validate_uninstall_directory(destination)
     shell = _remove_windows_shell_integration(destination)
+    plugins = remove_from_all_vaults()  # The plugin cannot work without the engine; notes are untouched.
     removed = destination.is_dir()
     if removed:
         shutil.rmtree(destination)
-    return {"uninstalled": removed, "install_dir": str(destination), "data_preserved": True, **shell}
+    return {"uninstalled": removed, "install_dir": str(destination), "data_preserved": True, **shell, **plugins}
 
 
 def _queue_worker_cleanup(worker_path: Path) -> None:
@@ -400,6 +411,7 @@ class NativeSetupApp:
         self.state = initial_native_state(home, project)
         self.step = 0
         self.applying = False
+        self.switched_to_control_centre = False
         self.plan: dict[str, Any] | None = None
         self.client_details = self.state["clients"]
         self.client_vars = {name: tk.BooleanVar(value=False) for name in CLIENT_NAMES}
@@ -408,6 +420,8 @@ class NativeSetupApp:
         self.map_var = tk.BooleanVar(value=True)
         self.update_var = tk.BooleanVar(value=False)
         self.model_var = tk.StringVar(value="")
+        self.vaults = [row for row in obsidian_vaults() if row["available"]]
+        self.vault_vars = {row["path"]: tk.BooleanVar(value=False) for row in self.vaults}  # Opt-in per vault.
         self.status_var = tk.StringVar(value="Detecting AI tools and local models…")
         self._icon: tk.PhotoImage | None = None
         self._configure_window()
@@ -481,6 +495,8 @@ class NativeSetupApp:
         ttk.Label(nav, text="No cloud account required.\nNo project content is uploaded.", style="NavText.TLabel", justify="left").pack(side="bottom", anchor="w", padx=24, pady=(12, 28))
         self.uninstall_button = ttk.Button(nav, text="Uninstall HoloCore", style="NavAction.TButton", command=self._request_uninstall)
         self.uninstall_button.pack(side="bottom", fill="x", padx=24)
+        ttk.Button(nav, text="Open control centre", style="NavAction.TButton",
+                   command=self._open_desktop).pack(side="bottom", fill="x", padx=24, pady=8)
 
         outer = ttk.Frame(self.root, style="Panel.TFrame")
         outer.grid(row=0, column=1, sticky="nsew")
@@ -503,6 +519,19 @@ class NativeSetupApp:
         self.footer_status.grid(row=0, column=1, padx=16, sticky="w")
         self.next_button = ttk.Button(footer, text="Continue", style="Primary.TButton", command=self.next)
         self.next_button.grid(row=0, column=2, sticky="e")
+
+    def _open_desktop(self) -> None:
+        if self.applying:
+            return
+        self.switched_to_control_centre = True
+        from holocore.desktop_app import DesktopControlCentre
+
+        for child in self.root.winfo_children():
+            child.destroy()
+        DesktopControlCentre(
+            self.root, self.project_var.get().strip() or Path.cwd(),
+            home=self.home_var.get().strip() or None,
+        )
 
     def _clear_content(self) -> ttk.Frame:
         for child in self.content.winfo_children():
@@ -549,8 +578,24 @@ class NativeSetupApp:
         self._field(body, "First project", self.project_var, lambda: self._browse(self.project_var, "Choose your first project"))
         ttk.Label(body, text="Optional if you only want to create the Second Brain now. A project is required to connect AI tools.", style="Subtitle.TLabel", wraplength=620).pack(anchor="w", pady=(6, 0))
 
+    def _scrollable(self, body: ttk.Frame) -> ttk.Frame:
+        """A vertically scrolling area for pages longer than the window."""
+        canvas = tk.Canvas(body, bg=COLORS["panel"], highlightthickness=0)
+        scroll = ttk.Scrollbar(body, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas, style="Panel.TFrame")
+        inner.bind("<Configure>", lambda _event: canvas.configure(scrollregion=canvas.bbox("all")))
+        window = canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.bind("<Configure>", lambda event: canvas.itemconfigure(window, width=event.width))
+        canvas.configure(yscrollcommand=scroll.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+        wheel = lambda event: canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
+        canvas.bind("<Enter>", lambda _event: canvas.bind_all("<MouseWheel>", wheel))
+        canvas.bind("<Leave>", lambda _event: canvas.unbind_all("<MouseWheel>"))
+        return inner
+
     def _show_features(self) -> None:
-        body = self._clear_content()
+        body = self._scrollable(self._clear_content())
         self._heading(body, "Select AI tools and features", "Detected tools are marked below. HoloCore changes only the integrations you select and preserves unrelated settings.")
         tools = ttk.Frame(body, style="Panel.TFrame")
         tools.pack(fill="x")
@@ -570,6 +615,14 @@ class NativeSetupApp:
         ttk.Label(body, text="Indexes project structure locally. It can also be built later.", style="Subtitle.TLabel").pack(anchor="w", padx=24)
         ttk.Checkbutton(body, text="Enable lightweight daily update checks", variable=self.update_var).pack(anchor="w", pady=(14, 4))
         ttk.Label(body, text="Checks only during active sessions; no resident background service.", style="Subtitle.TLabel").pack(anchor="w", padx=24)
+        if self.vaults:
+            ttk.Separator(body).pack(fill="x", pady=14)
+            ttk.Label(body, text="Add the HoloCore Board to Obsidian", style="Section.TLabel").pack(anchor="w")
+            ttk.Label(body, text="A read-only view of your projects, AI sessions, memories, and changed files. Uninstalling HoloCore removes it again.",
+                      style="Subtitle.TLabel", wraplength=620, justify="left").pack(anchor="w", pady=(2, 4))
+            for row in self.vaults:
+                ttk.Checkbutton(body, text=f"{row['name']}   ({row['path']})" + ("  · already added" if row["installed"] else ""),
+                                variable=self.vault_vars[row["path"]]).pack(anchor="w", pady=1)
 
     def _show_model(self) -> None:
         body = self._clear_content()
@@ -598,6 +651,7 @@ class NativeSetupApp:
             "clients": [name for name in CLIENT_NAMES if self.client_vars[name].get()],
             "build_code_map": self.map_var.get(), "auto_update": self.update_var.get(),
             "model": self.model_var.get(),
+            "obsidian_vaults": [path for path, variable in self.vault_vars.items() if variable.get()],
         }
 
     def _show_review(self) -> None:
@@ -642,7 +696,7 @@ class NativeSetupApp:
         tk.Label(panel, text="HoloCore is ready", bg="#F0FDF4", fg=COLORS["ink"], font=("Segoe UI Semibold", 24)).pack(anchor="w")
         tk.Label(panel, text=result["next"], bg="#F0FDF4", fg=COLORS["muted"], font=("Segoe UI", 10), wraplength=560, justify="left").pack(anchor="w", pady=(8, 0))
         self.back_button.configure(state="disabled")
-        self.next_button.configure(text="Close", state="normal", command=self.root.destroy)
+        self.next_button.configure(text="Open control centre", state="normal", command=self._open_desktop)
 
     def _show_applying(self) -> None:
         body = self._clear_content()
@@ -669,6 +723,8 @@ class NativeSetupApp:
         self.root.after(0, lambda: self._discovery_ready(state))
 
     def _discovery_ready(self, state: dict[str, Any]) -> None:
+        if self.switched_to_control_centre:
+            return
         self.state = {**state, "detecting": False}
         self.client_details = state["clients"]
         if self.project_var.get().strip():
@@ -681,6 +737,8 @@ class NativeSetupApp:
             self.show_step(self.step)
 
     def _discovery_failed(self, detail: str) -> None:
+        if self.switched_to_control_centre:
+            return
         self.state["detecting"] = False
         self.status_var.set("Detection unavailable; manual setup is still available")
 
@@ -804,7 +862,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--uninstall-worker", action="store_true")
     parser.add_argument("--install-dir")
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--desktop", action="store_true")
+    parser.add_argument("--desktop-ui-smoke-test", action="store_true")
+    parser.add_argument("--backup-scheduled", action="store_true")
     args = parser.parse_args(argv)
+    if args.backup_scheduled:  # Run by Windows Task Scheduler; no window, outcome recorded for the Control Centre.
+        from holocore.home_backup import run_scheduled_backup
+        return 0 if run_scheduled_backup(args.home or HomeManager().home)["result"] == "succeeded" else 1
+    if args.desktop_ui_smoke_test:
+        from holocore.desktop_app import run_desktop_ui_smoke_test
+        return run_desktop_ui_smoke_test()
+    if args.desktop:
+        from holocore.desktop_app import launch_desktop_app
+        return launch_desktop_app(project=args.project, home=args.home)
     if args.ui_smoke_test:
         return run_native_ui_smoke_test()
     if args.uninstall_ui_smoke_test:
@@ -837,6 +907,10 @@ def main(argv: list[str] | None = None) -> int:
             root.destroy()
             return 1
         return 0
+    installed_setup = (_default_install_dir() / "HoloCore Setup.exe").resolve()
+    if Path(sys.executable).resolve() == installed_setup and (installed_setup.parent / "holocore.exe").is_file():
+        from holocore.desktop_app import launch_desktop_app
+        return launch_desktop_app()
     try:
         install_embedded_release()
     except OSError as exc:

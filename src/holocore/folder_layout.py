@@ -74,14 +74,10 @@ def _junction(alias: Path, target: Path) -> None:
         if _is_alias(alias) and alias.resolve() == target.resolve():
             return
         raise LayoutMigrationError(f"legacy path is occupied and is not a matching alias: {alias}")
-    try:
-        os.symlink(target, alias, target_is_directory=True)
-    except (OSError, NotImplementedError):
-        if os.name != "nt":
-            raise
+    if os.name == "nt":
         quote = lambda value: "'" + str(value).replace("'", "''") + "'"
         result = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-                                 f"New-Item -ItemType Junction -Path {quote(alias)} -Target {quote(target)} | Out-Null"],
+                                 f"New-Item -ItemType Junction -Path {quote(alias)} -Target {quote(target)} -ErrorAction Stop | Out-Null"],
                                 capture_output=True, text=True)
         # Some unit tests replace subprocess.run with a mock; leave the real
         # setup path functional without treating the mock as a PowerShell failure.
@@ -89,6 +85,11 @@ def _junction(alias: Path, target: Path) -> None:
             return
         if result.returncode:
             raise LayoutMigrationError(f"could not create legacy junction {alias}: {result.stderr.strip()}")
+        is_junction = getattr(os.path, "isjunction", None)
+        if not alias.exists() or (is_junction and not is_junction(alias)):
+            raise LayoutMigrationError(f"PowerShell reported success without creating a junction: {alias}")
+        return
+    os.symlink(target, alias, target_is_directory=True)
 
 
 def ensure_legacy_aliases(home: str | Path, *, project_storage: str | Path | None = None) -> int:

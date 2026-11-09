@@ -1,57 +1,49 @@
-# HoloCore roadmap to v1.0
+# HoloCore roadmap
 
 | Version | Focus | Status |
 |---|---|---|
-| v0.16 | Better semantic Code Map and community knowledge generation | Implemented in source |
-| v0.17 | Complete memory UI and research/architecture workflows | Implemented in source |
-| v0.18 | Recoverable setup, migrations, and native Windows lifecycle | Implemented in source |
-| v0.19 | Plain-language migration and release supply-chain hardening | Implemented in source |
-| v1.0 | Stable contracts, verified artifacts, and complete acceptance coverage | Release candidate |
+| v0.16 | Better semantic Code Map and community knowledge generation | Implemented |
+| v0.17 | Complete memory UI and research/architecture workflows | Implemented |
+| v0.18 | Recoverable setup, migrations, and native Windows lifecycle | Implemented |
+| v0.19 | Plain-language migration and release supply-chain hardening | Implemented |
+| v1.0 | Stable contracts, verified artifacts, and complete acceptance coverage | Released |
+| v1.0.1 | Native Windows uninstall experience | Released |
+| v1.1 | Local Control Centre, operational visibility, and durable storage/recovery foundations | Released |
+| v1.2 | Conversation cleanup, memory review, incremental processing, and task context packs | Planned |
+| v1.3 | Notion selected-page sync, agent handoffs, and cross-project sharing | Planned |
+| v1.4 | Windows MSI packaging and managed-install lifecycle | Future consideration |
 
-## v0.16 exit criteria
+## v1.0 and v1.0.1 release status
 
-- Plain-language and CamelCase-aware Code Map search is deterministic.
-- Dense feature areas remain distinct even when cross-area imports connect them.
-- Every community exposes topics, key files, representative symbols, and structural evidence.
-- Community knowledge is generated without being routed back into HoloCore as source material.
-- Existing Code Map CLI and MCP contracts remain compatible.
+The v1.0 release-candidate verification is complete and v1.0.0 is stable and released. The candidate-only promotion instructions below are historical; they are not outstanding release gates. v1.0.1 is also released and adds the native Windows uninstall experience described in [v1.0.1](v1.0.1.md).
 
-## v0.17 direction
+## v1.1 — Control Centre and reliability foundation (released as v1.1.0)
 
-- Complete the Memories interface for browsing, filtering, inspecting provenance, and managing retained history.
-- Add guided research and architecture workflows that join Knowledge, Code Map evidence, and scoped Memories.
-- Keep generated findings distinct from verified durable Knowledge until a user explicitly promotes them.
+v1.1.0 brings setup, project and knowledge browsing, connection visibility, backup and restore into a local desktop Control Centre, backed by a shared local Python service boundary and stronger SQLite behavior. It also ships the HoloCore Board Obsidian plugin. No network API is implied. See [v1.1.0 release notes](v1.1.0.md) and [v1.1 implementation record](v1.1.md).
 
-## v0.17 exit criteria
+Planned outcomes:
 
-- Memories can be searched, filtered by group and source, paginated, and inspected with provenance and privacy metadata.
-- A user can explicitly forget one scoped memory without deleting original source files.
-- Research and architecture briefs combine bounded Code Map, Knowledge, and Memories evidence.
-- Brief generation is read-only and marks evidence confidence and missing source categories.
-- A reviewed brief enters durable Knowledge only through an explicit user action.
-- Console controls are keyboard-labeled, responsive, and respect reduced-motion preferences.
+- **Shipped in v1.1.0:** Control Centre for projects, Knowledge, Memories, Code Map, AI connections, storage status, and backup/restore; connection test and capture timestamps; scheduled backups and portable exports; SQLite reliability improvements; unified Setup and Control Centre; Obsidian Board plugin.
+- **Planned for v1.2:** conversation search and deletion with an impact preview; review of proposed, duplicate, conflicting, or stale memories; task context packs; incremental processing and pause/resume; measured performance and retrieval-quality dashboard; further scale and recovery coverage.
 
-## v1.0 gate
+## v1.2 — Memory and context workflows
 
-- Freeze and publish CLI, MCP, storage, and upgrade compatibility contracts.
-- Add explicit persistent-data migrations, backup, interruption recovery, and version fixture coverage.
-- Harden installation, update, rollback, checksum verification, optional signature verification, and native uninstall.
-- Execute clean-machine acceptance coverage against the exact release artifacts users install.
+Planned work builds on the shipped Obsidian Board with a reviewable memory workflow. Users will be able to inspect proposed knowledge and resolve duplicates, conflicts, and stale items with provenance before promotion. Conversation search and deletion will preview related memories and Knowledge changes. Task context packs will gather bounded, relevant context for bug investigation, continuing work, and explaining a code area.
 
-### Implemented stabilization foundations
+Incremental processing and a measured performance and retrieval-quality dashboard are planned here, with cached work invalidated when its inputs or processing version changes and clear busy/pause behavior.
 
-- Pull requests and `main` pushes run the source suite and build both Windows artifacts.
-- Tagged builds reject a package-version mismatch and execute the built CLI and Setup artifacts.
-- A release manifest binds the tag, reported version, and SHA-256 hashes for both executables.
-- PowerShell installation fails closed when the manifest or a checksum is missing or invalid.
-- Native uninstall removes application files, PATH integration, shortcuts, cached installers, and rollback binaries while preserving user data.
-- Memories database upgrades use explicit numbered migrations, a pre-migration SQLite backup, an integrity check, and a migration journal.
-- Setup uses an atomic operation journal and resumes completed idempotent steps after interruption.
+Incremental processing and caching improvements continue where v1.1 measurements show remaining cost or freshness problems.
 
-### v1.0 release-candidate verification
+The [HoloCore Board](obsidian-board.md) Obsidian plugin, a read-only flow board of projects, AI sessions, memories, and changed files, shipped in v1.1.0 and is installed per vault by Setup.
 
-- SHA-256 verification, SBOM generation, and provenance are mandatory for tags. Authenticode signing remains an optional future enhancement.
-- CycloneDX SBOM generation and GitHub build provenance are part of the release workflow.
-- Tagged builds execute install, status, upgrade, rollback, uninstall, and data-preservation checks against the exact published artifacts.
-- The built native Setup executable walks all four pages at scaled DPI and verifies its retry state.
-- Publish checksum-verified `v1.0.0-rc.1` and `v1.0.0-rc.2` prereleases first. Stable `v1.0.0` publication requires both immutable lifecycle runs to pass with no open P0 or P1 defects.
+## v1.3 — Notion and collaborative handoffs
+
+Planned work adds an explicitly selected-page Notion connector and synchronization, plus agent handoffs that preserve decisions, affected files, tests, blockers, and next steps. Cross-project sharing will remain scoped and reviewable, with provenance and explicit conflict handling. Further efficiency work will follow measured bottlenecks.
+
+## v1.4 — Windows installer packaging (future consideration)
+
+Evaluate an MSI package with reliable upgrade, repair, rollback, and uninstall behavior. PowerShell remains the primary Windows installation path and the standalone Setup EXE remains the secondary option. MSI packaging does not itself establish a trusted publisher or remove SmartScreen warnings for unsigned direct downloads; signing and distribution remain separate decisions.
+
+## Roadmap status and scope
+
+“In progress” identifies the active release line, not a claim that every listed feature is implemented or accepted. Features described as planned are targets for that phase and become available only when implemented, documented, and verified against their acceptance criteria. Version assignments may be refined as implementation and scale evidence become available.

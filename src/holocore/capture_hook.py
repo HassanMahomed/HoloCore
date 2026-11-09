@@ -92,6 +92,8 @@ def run(payload: Mapping[str, Any], client: str) -> dict[str, Any]:
     # Advance the transcript cursor immediately after successful ingestion so
     # an unrelated Atlas refresh failure cannot cause duplicate LLM calls.
     committed = report.commit()
+    # A safe point: this chat's memories are committed. Never waits, and a blocked checkpoint is reported.
+    checkpoint = engine.router.memories.checkpoint_wal()
     try:
         inbox = engine.sync_inbox()
         atlas = inbox.get("atlas") or engine.ensure_atlas()
@@ -102,6 +104,7 @@ def run(payload: Mapping[str, Any], client: str) -> dict[str, Any]:
         "captured": True,
         "messages": len(messages),
         "committed": committed,
+        "checkpoint": checkpoint,
         "archive_entry": result.get("archive_entry"),
         "inbox": inbox,
         "atlas": atlas,

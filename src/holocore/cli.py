@@ -7,6 +7,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+from . import __version__
+from .archive_promote import promote_sources
+from .archive_source import sync_archive_source
 from .config import Config
 from .engine import HoloCoreEngine
 from .home import HomeManager
@@ -14,10 +17,6 @@ from .layout import format_paths, world_paths
 from .lifecycle import installation_check, sync_all, uninstall_tool, update_install
 from .memories import MemoryStore
 from .memory_collection import CollectionOptions, MemoryCollector
-from .archive_source import sync_archive_source
-from .archive_promote import promote_sources
-from . import __version__
-
 
 PLATFORMS = ("claude", "codex", "gemini", "cursor", "opencode", "generic")
 
@@ -171,6 +170,8 @@ def main() -> int:
     sub.add_parser("status")
     sub.add_parser("detect-clients", help="Find supported AI clients installed on this computer")
     sub.add_parser("connections", help="Show which installed AI clients are connected to HoloCore")
+    desktop = sub.add_parser("desktop", help="Open the native HoloCore control centre")
+    desktop.add_argument("--home", help="HoloCore Home folder")
     console = sub.add_parser("console", help="Open the local HoloCore browser Console")
     console.add_argument("--port", type=int, default=0, help="Local port (0 chooses a free port)")
     console.add_argument("--no-open", action="store_true", help="Print the URL without opening a browser")
@@ -199,12 +200,39 @@ def main() -> int:
     global_graph.add_argument("--output")
     obsidian_vault = sub.add_parser("obsidian-vault", help="Build the Obsidian vault view of all registered Worlds")
     obsidian_vault.add_argument("--output", help="Optional output folder; defaults to HoloCore Obsidian Vault in Home")
+    board = sub.add_parser("board", help="Print the flow board data (projects, AI sessions, memories, files) as JSON")
+    board.add_argument("--home", help="HoloCore Home folder (default: the selected Home)")
+    board.add_argument("--project", help="Only this registered project id")
+    board.add_argument("--days", type=int, default=7, help="Sessions active in the last N days (0 = all time)")
+    board.add_argument("--limit", type=int, default=30, help="Most recent sessions to include")
+    board.add_argument("--show-noise", action="store_true", help="Include short or mechanical memory fragments")
+    obsidian_plugin = sub.add_parser("obsidian-plugin", help="Install or remove the HoloCore board plugin in Obsidian vaults")
+    plugin_sub = obsidian_plugin.add_subparsers(dest="plugin_command", required=True)
+    plugin_sub.add_parser("vaults", help="List Obsidian vaults on this computer and whether the plugin is installed")
+    plugin_sub.add_parser("install", help="Install the plugin into a vault").add_argument("--vault", required=True)
+    plugin_sub.add_parser("uninstall", help="Remove the plugin from a vault").add_argument("--vault", required=True)
     watch = sub.add_parser("watch", help="Automatically refresh every World and the Obsidian vault")
     watch.add_argument("--home", help="Shared HoloCore Home directory")
     watch.add_argument("--interval", type=float, default=30.0, help="Polling interval in seconds (default: 30)")
     watch.add_argument("--once", action="store_true", help="Run one change check and exit")
     watch.add_argument("--install", action="store_true", help="Install an automatic Windows logon task")
     watch.add_argument("--uninstall", action="store_true", help="Remove the automatic Windows logon task")
+    backup = sub.add_parser("backup", help="Back up, check, restore, or schedule backups of the HoloCore Home")
+    backup.add_argument("--home", help="HoloCore Home folder (default: the selected Home)")
+    backup_sub = backup.add_subparsers(dest="backup_command", required=True)
+    backup_sub.add_parser("create", help="Write a backup zip").add_argument("--to", required=True, help="Folder to save it in")
+    backup_sub.add_parser("check", help="Verify a backup and show what restoring it would change").add_argument("file")
+    backup_restore = backup_sub.add_parser("restore", help="Restore a backup (saves a safety backup first)")
+    backup_restore.add_argument("file")
+    backup_restore.add_argument("--yes", action="store_true", help="Confirm replacing the Home's data")
+    backup_schedule = backup_sub.add_parser("schedule", help="Back up automatically with Windows Task Scheduler")
+    backup_schedule.add_argument("--folder", required=True)
+    backup_schedule.add_argument("--daily", action="store_true", help="Daily instead of weekly")
+    backup_schedule.add_argument("--day", default="SUN", help="Day for weekly backups (MON-SUN)")
+    backup_schedule.add_argument("--time", default="20:00", help="24-hour time, e.g. 20:00")
+    backup_schedule.add_argument("--keep", type=int, default=4, help="Scheduled backups to keep")
+    backup_sub.add_parser("unschedule", help="Stop scheduled backups (existing backups are kept)")
+    backup_sub.add_parser("status", help="Show the schedule and the last scheduled run")
     sync_all_command = sub.add_parser("sync-all", help="Reconcile every registered Project")
     sync_all_command.add_argument("--detected", action="store_true", help="Connect only AI clients detected on this computer")
     sync_all_command.add_argument("-y", "--yes", action="store_true", help="Accept all detected AI clients without prompting")
@@ -385,6 +413,9 @@ def main() -> int:
             for name, detail in value.items():
                 print(f"{name.title():10} {detail['state']:16} {detail['detail']}")
         return 0
+    if args.command == "desktop":
+        from .desktop_app import launch_desktop_app
+        return launch_desktop_app(project=root if args.root != "." else None, home=args.home)
     if args.command == "console":
         from .console import export_console, serve_console
         if args.export:
@@ -410,6 +441,32 @@ def main() -> int:
         }
         print(json.dumps(value, indent=2, default=str) if args.json else f"HoloCore Home: {value['home']}\nKnowledge vault: {value['archive']}\nWorld registry: {Path(value['home']) / 'worlds.json'}")
         return 0
+    if args.command == "backup":
+        from . import home_backup
+        home = HomeManager(args.home).home
+        try:
+            if args.backup_command == "create":
+                value = home_backup.create_home_backup(home, args.to)
+            elif args.backup_command == "check":
+                value = home_backup.preview_home_restore(args.file, home)
+            elif args.backup_command == "restore":
+                value = home_backup.preview_home_restore(args.file, home)
+                if args.yes and value["valid"]:
+                    value = home_backup.restore_home_backup(args.file, home)
+                elif value["valid"]:
+                    value["next_step"] = "Nothing was restored. Re-run with --yes to replace this Home's data."
+            elif args.backup_command == "schedule":
+                value = home_backup.configure_schedule(home, folder=args.folder, frequency="daily" if args.daily else "weekly",
+                                                       day=args.day, time=args.time, keep=args.keep)
+            elif args.backup_command == "unschedule":
+                value = home_backup.disable_schedule(home)
+            else:
+                value = home_backup.schedule_status(home)
+        except home_backup.BackupError as exc:
+            print(f"HoloCore backup: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(value, indent=2, default=str))
+        return 0 if value.get("valid", True) else 1
     if args.command in {"worlds", "projects"}:
         value = HomeManager().list_worlds()
         if args.json:
@@ -431,8 +488,35 @@ def main() -> int:
         value = build_obsidian_vault(manager.home, output=args.output)
         print(json.dumps(value, indent=2, default=str) if args.json else f"Obsidian vault written to {value['path']}")
         return 0
+    if args.command == "board":
+        from .board import build_board
+        value = build_board(args.home, project=args.project, days=args.days or None, limit=args.limit,
+                            hide_noise=not args.show_noise)
+        # Always UTF-8: the Obsidian plugin decodes it so, and a Windows pipe defaults to the ANSI code page.
+        sys.stdout.flush()
+        sys.stdout.buffer.write((json.dumps(value, ensure_ascii=False, default=str) + "\n").encode("utf-8"))
+        sys.stdout.buffer.flush()
+        return 0
+    if args.command == "obsidian-plugin":
+        from . import obsidian_plugin
+        try:
+            if args.plugin_command == "vaults":
+                value = {"vaults": obsidian_plugin.obsidian_vaults()}
+            elif args.plugin_command == "install":
+                value = obsidian_plugin.install_plugin(args.vault)
+            else:
+                value = obsidian_plugin.uninstall_plugin(args.vault)
+        except obsidian_plugin.PluginError as exc:
+            print(f"HoloCore Obsidian plugin: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(value, indent=2, default=str))
+        return 0
     if args.command == "watch":
-        from .obsidian_watch import install_windows_task, uninstall_windows_task, watch_home
+        from .obsidian_watch import (
+            install_windows_task,
+            uninstall_windows_task,
+            watch_home,
+        )
         home = HomeManager(args.home).home if args.home else HomeManager().home
         if args.uninstall:
             value = uninstall_windows_task()
@@ -466,7 +550,9 @@ def main() -> int:
             print(f"HoloCore updated. Reconciled {reconciliation['updated']} of {reconciliation['count']} Worlds.")
         return 0
     if args.command == "auto-update":
-        from .auto_update import configure as configure_auto_update, maybe_check, status as auto_update_status
+        from .auto_update import configure as configure_auto_update
+        from .auto_update import maybe_check
+        from .auto_update import status as auto_update_status
         home = HomeManager().home
         if args.enable:
             value = configure_auto_update(home, enabled=True)
