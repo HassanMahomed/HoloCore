@@ -57,8 +57,9 @@ def test_explicit_home_search_and_backup_are_scoped(tmp_path, monkeypatch):
     MemoryStore(service.config.memory_path).create_world(service.config.world_id)
     backup = service.backup(tmp_path / "backups")
     preview = service.restore_preview(backup["backup"])
-    assert preview["restore_applied"] is False
-    assert preview["database"] == str(service.config.memory_path.resolve())
+    assert preview["valid"] and preview["restore_applied"] is False
+    assert preview["destination"] == str(manager.home.resolve())
+    assert backup["categories"]["memories"]["files"] == 1 and "knowledge" in backup["categories"]
     assert Path(backup["backup"]).is_file()
 
 
@@ -198,6 +199,19 @@ def test_start_menu_launch_opens_most_recent_or_containing_project(tmp_path, mon
     assert default_project(manager.home, cwd=older / "src") == older.resolve()
 
 
+def test_preview_wording_never_implies_a_restore_happened():
+    from holocore.desktop_app import describe_preview
+    valid = {"valid": True, "issues": [], "warnings": ["Memories recorded after this backup was made will be replaced."],
+             "created_at": "2026-11-08T10:00:00+00:00", "holocore_version": "1.0.1", "source_home": "C:/Home",
+             "categories": {"knowledge": {"label": "Knowledge notes", "files": 3, "bytes": 2048}},
+             "projects": ["HoloCore"], "not_included": ["Code maps (rebuilt automatically)"]}
+    text = describe_preview(valid)
+    assert "Every file's checksum matches." in text and "Knowledge notes: 3 files" in text
+    assert "will be replaced" in text and text.endswith("Nothing has been restored.")
+    broken = describe_preview({"valid": False, "issues": ["This file is not a HoloCore backup"], "warnings": []})
+    assert "can't be used" in broken and "not a HoloCore backup" in broken
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows junctions")
 def test_archive_does_not_double_count_junction_aliases(tmp_path):
     import _winapi
@@ -237,6 +251,16 @@ def test_control_centre_renders_service_data():
         assert "Remember this" in app.memory_preview.get("1.0", "end")
         app.show_code_map({"exists": False})
         assert app.code_cards["signals"][0].get() == "—"
+        app.show_schedule({"enabled": False, "folder": None, "frequency": "weekly", "day": "SUN", "time": "20:00",
+                           "keep": 4, "last_run": None})
+        assert app.schedule_label.cget("text").startswith("Off") and app.storage_cards["last_backup"][0].get() == "Never"
+        assert str(app.schedule_off_button.cget("state")) == "disabled"
+        app.show_schedule({"enabled": True, "folder": "D:/Backups", "frequency": "weekly", "day": "SUN", "time": "20:00",
+                           "keep": 4, "last_run": {"result": "failed", "finished_at": "2026-11-08T10:00:00+00:00",
+                                                   "error": "Disk full"}})
+        assert "every Sunday at 20:00" in app.schedule_label.cget("text")
+        assert app.storage_cards["last_backup"][0].get() == "Failed" and "Disk full" in app.storage_cards["last_backup"][1].get()
+        assert str(app.schedule_off_button.cget("state")) == "normal"
         for page in ("home", "projects", "connections", "storage"):
             app.show_page(page)
         assert app.title_var.get() == "Storage & Backups"

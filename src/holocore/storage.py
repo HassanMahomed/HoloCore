@@ -65,6 +65,33 @@ def storage_status(database: str | Path) -> dict[str, Any]:
     }
 
 
+def _snapshot_into(db: sqlite3.Connection, target: Path) -> int:
+    """Copy committed data (including WAL) into ``target`` and validate the copy."""
+    deadline = time.monotonic() + 120
+
+    def progress(_status: int, _remaining: int, _total: int) -> None:
+        if time.monotonic() > deadline:
+            raise TimeoutError("Backup exceeded two minutes; retry when capture is less busy")
+
+    with closing(sqlite3.connect(target)) as copy:
+        db.backup(copy, pages=256, progress=progress, sleep=0.05)
+        version = _validate(copy)
+        copy.execute("PRAGMA journal_mode=DELETE")
+    return version
+
+
+def snapshot_database(database: str | Path, target: str | Path) -> int:
+    """Write a validated, self-contained snapshot of a live Memories database; returns its schema version."""
+    with closing(_read_connection(Path(database).resolve())) as db:
+        return _snapshot_into(db, Path(target))
+
+
+def validate_database(path: str | Path) -> int:
+    """Integrity-check a Memories database file read-only; returns its schema version."""
+    with closing(_read_connection(Path(path).resolve())) as db:
+        return _validate(db)
+
+
 def create_backup(database: str | Path, backup_dir: str | Path) -> dict[str, Any]:
     """Snapshot committed WAL data, validate it, and atomically publish a new file."""
     source = Path(database).resolve()
@@ -77,17 +104,8 @@ def create_backup(database: str | Path, backup_dir: str | Path) -> dict[str, Any
         handle, temporary_name = tempfile.mkstemp(prefix=".holocore-backup-", suffix=".tmp", dir=directory)
         os.close(handle)
         temporary = Path(temporary_name)
-        deadline = time.monotonic() + 120
-
-        def progress(_status: int, _remaining: int, _total: int) -> None:
-            if time.monotonic() > deadline:
-                raise TimeoutError("Backup exceeded two minutes; retry when capture is less busy")
-
         try:
-            with closing(sqlite3.connect(temporary)) as copy:
-                db.backup(copy, pages=256, progress=progress, sleep=0.05)
-                version = _validate(copy)
-                copy.execute("PRAGMA journal_mode=DELETE")
+            version = _snapshot_into(db, temporary)
             os.replace(temporary, target)
         finally:
             temporary.unlink(missing_ok=True)

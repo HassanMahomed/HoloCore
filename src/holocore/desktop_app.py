@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath
 from tkinter import filedialog, messagebox, ttk
 
 from .desktop_service import KNOWLEDGE_SOURCES, DesktopService, default_project
+from .home_backup import CATEGORY_LABELS as LABELS
 from .setup_app import resource_path
 
 # Copper & ink, taken from the HoloCore logo gradient (ink #1D1B2E → copper #C0521F → amber #F3B33D).
@@ -30,6 +31,8 @@ PAGES = (
     ("storage", "Storage & Backups", "Memory database size, backups, and restore checks"),
 )
 ALL_KINDS = "All kinds"
+DAY_NAMES = {"MON": "Monday", "TUE": "Tuesday", "WED": "Wednesday", "THU": "Thursday", "FRI": "Friday",
+             "SAT": "Saturday", "SUN": "Sunday"}
 
 
 def clean(text, limit: int | None = None) -> str:
@@ -57,6 +60,27 @@ def human_bytes(value: int) -> str:
             return f"{size:,.0f} {unit}" if unit == "bytes" else f"{size:,.1f} {unit}"
         size /= 1024
     return f"{value} bytes"
+
+
+def files(count: int) -> str:
+    return f"{count:,} file{'' if count == 1 else 's'}"
+
+
+def describe_preview(preview: dict) -> str:
+    """Plain-language summary of a backup check, shown before anything is restored."""
+    if not preview.get("created_at"):
+        return "This file can't be used as a HoloCore backup.\n\n" + "\n".join(preview["issues"])
+    lines = [f"Backup from {short_time(preview['created_at'])} · HoloCore {preview.get('holocore_version')}",
+             f"Made from: {preview.get('source_home')}", ""]
+    lines.append("Every file's checksum matches." if preview["valid"] else "Problems found — this backup can't be restored:")
+    lines += [f"  • {issue}" for issue in preview["issues"]]
+    lines += ["", "Contains:"] + [f"  {value['label']}: {files(value['files'])}, {human_bytes(value['bytes'])}"
+                                  for value in preview.get("categories", {}).values()]
+    lines += [f"  Projects: {len(preview.get('projects', []))}", "", "Not included: " + "; ".join(preview.get("not_included", []))]
+    if preview["warnings"]:
+        lines += ["", "Before restoring, note:"] + [f"  • {warning}" for warning in preview["warnings"]]
+    lines += ["", "Nothing has been restored."]
+    return "\n".join(lines)
 
 
 def describe_test(result: dict | None) -> str:
@@ -98,6 +122,7 @@ class DesktopControlCentre:
         self.test_results: dict[str, dict] = {}
         self.note_rows: dict[str, dict] = {}
         self.memory_rows: dict[str, dict] = {}
+        self.schedule: dict | None = None
         window.title("HoloCore — Control Centre")
         self.scale = max(1.0, window.winfo_fpixels("1i") / 96)
         window.geometry(f"{self.px(1240)}x{self.px(800)}")
@@ -420,17 +445,31 @@ class DesktopControlCentre:
         frame.pack(fill="both", expand=True)
 
     def _build_storage(self, page) -> None:
-        self.storage_cards = self.cards(page, (("database", "Database"), ("journal", "Pending journal"),
-                                               ("reusable", "Reusable space"), ("total", "Total on disk")))
+        self.storage_cards = self.cards(page, (("database", "Memories database"), ("journal", "Pending journal"),
+                                               ("total", "Total on disk"), ("last_backup", "Last scheduled backup")))
+        ttk.Label(page, text="Back up and restore", style="Section.TLabel").pack(anchor="w", pady=(22, 4))
+        ttk.Label(page, text="A backup is one .zip of everything HoloCore cannot rebuild: knowledge notes, memories, "
+                  "original chat transcripts, project sources, and the project registry. Copy it to another computer "
+                  "to move your HoloCore. Code maps are rebuilt automatically and are left out.",
+                  style="Muted.TLabel", wraplength=self.px(960), justify="left").pack(anchor="w", pady=(0, 8))
         bar = ttk.Frame(page)
-        bar.pack(fill="x", pady=(20, 8))
-        self.backup_button = self.button(bar, "Back up memories", self.backup, primary=True)
+        bar.pack(fill="x")
+        self.backup_button = self.button(bar, "Back up now…", self.backup, primary=True)
         self.backup_button.pack(side="left")
-        self.preview_button = self.button(bar, "Check a backup", self.restore_preview)
+        self.preview_button = self.button(bar, "Check a backup…", self.restore_preview)
         self.preview_button.pack(side="left", padx=8)
-        ttk.Label(page, text="Backups include the memory and activity database. Knowledge notes and original chat files "
-                  "need separate backups. Integrity is checked when creating or checking a backup.",
-                  style="Muted.TLabel", wraplength=900, justify="left").pack(anchor="w", pady=(0, 12))
+        self.restore_button = self.button(bar, "Restore from backup…", self.restore)
+        self.restore_button.pack(side="left")
+        ttk.Label(page, text="Scheduled backups", style="Section.TLabel").pack(anchor="w", pady=(22, 4))
+        self.schedule_label = ttk.Label(page, text="", style="Muted.TLabel", wraplength=self.px(960), justify="left")
+        self.schedule_label.pack(anchor="w", pady=(0, 8))
+        bar = ttk.Frame(page)
+        bar.pack(fill="x", pady=(0, 16))
+        self.button(bar, "Set up schedule…", self.edit_schedule, primary=True).pack(side="left")
+        # Not in action_buttons: its state follows whether a schedule is on, not just whether HoloCore is busy.
+        self.schedule_off_button = ttk.Button(bar, text="Turn off", style="Secondary.TButton", command=self.stop_schedule,
+                                              state="disabled")
+        self.schedule_off_button.pack(side="left", padx=8)
         frame, self.storage_text = self.preview(page)
         frame.pack(fill="both", expand=True)
 
@@ -544,6 +583,7 @@ class DesktopControlCentre:
         self.show_projects()
         self.show_connections()
         self.show_storage(result["storage"], result["database"])
+        self.show_schedule(result.get("backups"))
 
     def show_projects(self) -> None:
         world = self.service.world
@@ -633,27 +673,134 @@ class DesktopControlCentre:
         cards["database"][1].set(f"{storage['page_count']:,} pages · {storage['journal_mode'].upper()} mode")
         cards["journal"][0].set(human_bytes(storage["wal_bytes"]))
         cards["journal"][1].set("Committed changes not yet merged into the database file")
-        cards["reusable"][0].set(human_bytes(storage["reusable_bytes"]))
-        cards["reusable"][1].set("Free pages SQLite will reuse")
         cards["total"][0].set(human_bytes(storage["total_bytes"]))
         cards["total"][1].set("Database plus journal files")
         self.set_text(self.storage_text, f"Memory database\n{database}")
 
+    def show_schedule(self, settings: dict | None) -> None:
+        self.schedule = settings
+        value, note = self.storage_cards["last_backup"]
+        if not settings:
+            self.schedule_label.configure(text="Scheduled backups need a project that belongs to a HoloCore Home.")
+            value.set("—")
+            note.set("")
+            return
+        when = (f"every {DAY_NAMES[settings['day']]}" if settings["frequency"] == "weekly" else "every day") + f" at {settings['time']}"
+        self.schedule_label.configure(text=(
+            f"On: {when}, keeping the newest {settings['keep']} in {settings['folder']}" if settings["enabled"]
+            else "Off. Set up a schedule to back up automatically; nothing runs until you choose a folder."))
+        self.schedule_off_button.configure(state="normal" if settings["enabled"] else "disabled")
+        run = settings.get("last_run")
+        if not run:
+            value.set("Never")
+            note.set("No scheduled backup has run yet")
+        elif run["result"] == "succeeded":
+            value.set(describe_capture(run["finished_at"]).split(" (")[-1].rstrip(")"))
+            note.set(f"Succeeded {short_time(run['finished_at'])} · {human_bytes(run['bytes'])}")
+        else:
+            value.set("Failed")
+            note.set(f"{short_time(run['finished_at'])}: {clean(run.get('error'), 90)}")
+
     def backup(self) -> None:
-        directory = filedialog.askdirectory(parent=self.window, title="Choose backup folder")
+        directory = filedialog.askdirectory(parent=self.window, title="Choose where to save the backup")
         if directory:
-            self.run("Creating and checking memory backup…", lambda: self.service.backup(directory),
-                     lambda result: self.set_text(self.storage_text, f"Backup created and integrity checked\n\n{result['backup']}\n\n"
-                                                  f"Size: {human_bytes(result['bytes'])}\n\nKnowledge notes and original chat files are not included."))
+            self.run("Backing up your HoloCore Home…", lambda: self.service.backup(directory), self.show_backup)
+
+    def show_backup(self, result: dict) -> None:
+        lines = ["Backup created and every file checksummed", "", result["backup"], f"Size: {human_bytes(result['bytes'])}", ""]
+        lines += [f"{LABELS.get(key, key)}: {files(value['files'])}, {human_bytes(value['bytes'])}"
+                  for key, value in result["categories"].items()]
+        if result["skipped"]:
+            lines += ["", f"{len(result['skipped'])} file(s) were in use and skipped:"]
+            lines += [f"  {row['path']}" for row in result["skipped"][:10]]
+        self.set_text(self.storage_text, "\n".join(lines))
+
+    def choose_backup_file(self, title: str) -> str:
+        return filedialog.askopenfilename(parent=self.window, title=title,
+                                          filetypes=[("HoloCore backups", "*.zip"), ("All files", "*.*")])
 
     def restore_preview(self) -> None:
-        backup = filedialog.askopenfilename(parent=self.window, title="Choose memory backup to check",
-                                            filetypes=[("SQLite backups", "*.sqlite3 *.db"), ("All files", "*.*")])
+        backup = self.choose_backup_file("Choose a HoloCore backup to check")
         if backup:
-            self.run("Checking restore candidate…", lambda: self.service.restore_preview(backup),
-                     lambda result: self.set_text(self.storage_text, f"Backup is valid\n\n{result['backup']}\n\nTarget memory database:\n"
-                                                  f"{result['database']}\n\nNo data has been restored. Close all HoloCore writers before a "
-                                                  "recovery operation. This interface currently validates backups only."))
+            self.run("Checking every file in the backup…", lambda: self.service.restore_preview(backup),
+                     lambda result: self.set_text(self.storage_text, describe_preview(result)))
+
+    def restore(self) -> None:
+        backup = self.choose_backup_file("Choose a HoloCore backup to restore")
+        if backup:
+            self.run("Checking every file in the backup…", lambda: self.service.restore_preview(backup), self.confirm_restore)
+
+    def confirm_restore(self, preview: dict) -> None:
+        self.set_text(self.storage_text, describe_preview(preview))
+        if not preview["valid"]:
+            messagebox.showerror("This backup can't be restored", "\n".join(preview["issues"][:8]), parent=self.window)
+            return
+        message = (f"Restore the backup from {short_time(preview['created_at'])}?\n\n"
+                   "This replaces this Home's knowledge notes, memories, original chat transcripts, project sources, "
+                   "and project registry with the backup's copies.\n\nA safety backup of everything as it is now is "
+                   f"saved first, in:\n{Path(preview['destination']) / 'Restore Safety Backups'}")
+        if preview["warnings"]:
+            message += "\n\n" + "\n\n".join(preview["warnings"])
+        if messagebox.askyesno("Restore from backup", message, icon="warning", default="no", parent=self.window):
+            backup = preview["backup"]
+            self.run("Restoring… HoloCore keeps working while this runs", lambda: self.service.restore(backup), self.show_restored)
+
+    def show_restored(self, result: dict) -> None:
+        self.set_text(self.storage_text, f"Restored the backup from {short_time(result['created_at'])}.\n\n"
+                                         f"Safety backup of the previous state:\n{result['safety_backup']}")
+        self.refresh()
+
+    def edit_schedule(self) -> None:
+        settings = dict(self.schedule or {"folder": None, "frequency": "weekly", "day": "SUN", "time": "20:00", "keep": 4})
+        dialog = tk.Toplevel(self.window)
+        dialog.title("Scheduled backups")
+        dialog.configure(bg=COLORS["paper"], padx=self.px(24), pady=self.px(20))
+        dialog.transient(self.window)
+        dialog.resizable(False, False)
+        folder = tk.StringVar(value=settings.get("folder") or "")
+        frequency = tk.StringVar(value=settings["frequency"])
+        day = tk.StringVar(value=DAY_NAMES[settings["day"]])
+        time_value = tk.StringVar(value=settings["time"])
+        keep = tk.StringVar(value=str(settings["keep"]))
+        ttk.Label(dialog, text="Backup folder").grid(row=0, column=0, sticky="w", pady=6)
+        ttk.Entry(dialog, textvariable=folder, width=48).grid(row=0, column=1, sticky="ew", padx=8)
+        ttk.Button(dialog, text="Browse…", style="Secondary.TButton", command=lambda: folder.set(
+            filedialog.askdirectory(parent=dialog, title="Choose a folder for scheduled backups") or folder.get())).grid(row=0, column=2)
+        ttk.Label(dialog, text="How often").grid(row=1, column=0, sticky="w", pady=6)
+        often = ttk.Frame(dialog)
+        often.grid(row=1, column=1, sticky="w", padx=8)
+        for text, value_ in (("Weekly", "weekly"), ("Daily", "daily")):
+            ttk.Radiobutton(often, text=text, value=value_, variable=frequency).pack(side="left", padx=(0, 12))
+        ttk.Label(dialog, text="Day").grid(row=2, column=0, sticky="w", pady=6)
+        ttk.Combobox(dialog, textvariable=day, values=list(DAY_NAMES.values()), state="readonly", width=12).grid(
+            row=2, column=1, sticky="w", padx=8)
+        ttk.Label(dialog, text="Time (24-hour)").grid(row=3, column=0, sticky="w", pady=6)
+        ttk.Entry(dialog, textvariable=time_value, width=8).grid(row=3, column=1, sticky="w", padx=8)
+        ttk.Label(dialog, text="Backups to keep").grid(row=4, column=0, sticky="w", pady=6)
+        ttk.Spinbox(dialog, from_=1, to=52, textvariable=keep, width=6).grid(row=4, column=1, sticky="w", padx=8)
+        ttk.Label(dialog, text="Runs from Windows Task Scheduler without opening a window. Older scheduled backups "
+                  "beyond the number to keep are deleted from this folder.", style="Muted.TLabel",
+                  wraplength=self.px(460), justify="left").grid(row=5, column=0, columnspan=3, sticky="w", pady=(10, 14))
+        actions = ttk.Frame(dialog)
+        actions.grid(row=6, column=0, columnspan=3, sticky="e")
+
+        def save():
+            if not folder.get().strip():
+                messagebox.showerror("Scheduled backups", "Choose a backup folder first.", parent=dialog)
+                return
+            values = {"folder": folder.get().strip(), "frequency": frequency.get(), "time": time_value.get().strip(),
+                      "day": next(key for key, name in DAY_NAMES.items() if name == day.get()),
+                      "keep": int(keep.get()) if keep.get().strip().isdigit() else 0}
+            dialog.destroy()
+            self.run("Setting up scheduled backups…", lambda: self.service.set_backup_schedule(**values), self.show_schedule)
+        ttk.Button(actions, text="Cancel", style="Secondary.TButton", command=dialog.destroy).pack(side="right")
+        ttk.Button(actions, text="Save schedule", style="Primary.TButton", command=save).pack(side="right", padx=8)
+        dialog.grab_set()
+
+    def stop_schedule(self) -> None:
+        if messagebox.askyesno("Turn off scheduled backups", "Stop backing up automatically? Existing backups are kept.",
+                               parent=self.window):
+            self.run("Turning off scheduled backups…", self.service.stop_backup_schedule, self.show_schedule)
 
     # Knowledge ---------------------------------------------------------------
     def knowledge_source(self) -> str:

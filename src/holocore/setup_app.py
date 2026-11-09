@@ -830,7 +830,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--desktop", action="store_true")
     parser.add_argument("--desktop-ui-smoke-test", action="store_true")
+    parser.add_argument("--backup-scheduled", action="store_true")
     args = parser.parse_args(argv)
+    if args.backup_scheduled:  # Run by Windows Task Scheduler; no window, outcome recorded for the Control Centre.
+        from holocore.home_backup import run_scheduled_backup
+        return 0 if run_scheduled_backup(args.home or HomeManager().home)["result"] == "succeeded" else 1
     if args.desktop_ui_smoke_test:
         from holocore.desktop_app import run_desktop_ui_smoke_test
         return run_desktop_ui_smoke_test()

@@ -19,7 +19,9 @@ from .connection_health import check_client_connection, last_captures
 from .folder_layout import HomeLayout
 from .home import HomeManager
 from .install import inspect_client_connections
-from .storage import create_backup, preview_restore, storage_status
+from .home_backup import (BackupError, configure_schedule, create_home_backup, disable_schedule,
+                          preview_home_restore, restore_home_backup, schedule_status)
+from .storage import storage_status
 
 CONFIGURATION_LABELS = {"connected": "Configured", "needs-connection": "Not configured",
                         "invalid-config": "Configuration unreadable", "not-installed": "Unavailable"}
@@ -255,10 +257,29 @@ class DesktopService:
 
     def dashboard(self) -> dict:
         """Everything the Home page shows, gathered in one background call."""
-        return {**self.overview(), "summary": self.home_summary(), "timeline": self.timeline(30, hide_noise=True)}
+        return {**self.overview(), "summary": self.home_summary(), "timeline": self.timeline(30, hide_noise=True),
+                "backups": schedule_status(self.config.home) if self.config.home else None}
 
-    def backup(self, directory: str | Path) -> dict:
-        return create_backup(self.config.memory_path, directory)
+    # Whole-Home backups ----------------------------------------------------------
+    def _home(self) -> Path:
+        if self.config.home is None:
+            raise BackupError("Open a project that belongs to a HoloCore Home first")
+        return self.config.home
+
+    def backup(self, folder: str | Path) -> dict:
+        return create_home_backup(self._home(), folder)
 
     def restore_preview(self, backup: str | Path) -> dict:
-        return preview_restore(self.config.memory_path, backup)
+        return preview_home_restore(backup, self._home())
+
+    def restore(self, backup: str | Path) -> dict:
+        return restore_home_backup(backup, self._home())
+
+    def backup_schedule(self) -> dict:
+        return schedule_status(self._home())
+
+    def set_backup_schedule(self, **settings) -> dict:
+        return configure_schedule(self._home(), **settings)
+
+    def stop_backup_schedule(self) -> dict:
+        return disable_schedule(self._home())

@@ -207,6 +207,22 @@ def main() -> int:
     watch.add_argument("--once", action="store_true", help="Run one change check and exit")
     watch.add_argument("--install", action="store_true", help="Install an automatic Windows logon task")
     watch.add_argument("--uninstall", action="store_true", help="Remove the automatic Windows logon task")
+    backup = sub.add_parser("backup", help="Back up, check, restore, or schedule backups of the HoloCore Home")
+    backup.add_argument("--home", help="HoloCore Home folder (default: the selected Home)")
+    backup_sub = backup.add_subparsers(dest="backup_command", required=True)
+    backup_sub.add_parser("create", help="Write a backup zip").add_argument("--to", required=True, help="Folder to save it in")
+    backup_sub.add_parser("check", help="Verify a backup and show what restoring it would change").add_argument("file")
+    backup_restore = backup_sub.add_parser("restore", help="Restore a backup (saves a safety backup first)")
+    backup_restore.add_argument("file")
+    backup_restore.add_argument("--yes", action="store_true", help="Confirm replacing the Home's data")
+    backup_schedule = backup_sub.add_parser("schedule", help="Back up automatically with Windows Task Scheduler")
+    backup_schedule.add_argument("--folder", required=True)
+    backup_schedule.add_argument("--daily", action="store_true", help="Daily instead of weekly")
+    backup_schedule.add_argument("--day", default="SUN", help="Day for weekly backups (MON-SUN)")
+    backup_schedule.add_argument("--time", default="20:00", help="24-hour time, e.g. 20:00")
+    backup_schedule.add_argument("--keep", type=int, default=4, help="Scheduled backups to keep")
+    backup_sub.add_parser("unschedule", help="Stop scheduled backups (existing backups are kept)")
+    backup_sub.add_parser("status", help="Show the schedule and the last scheduled run")
     sync_all_command = sub.add_parser("sync-all", help="Reconcile every registered Project")
     sync_all_command.add_argument("--detected", action="store_true", help="Connect only AI clients detected on this computer")
     sync_all_command.add_argument("-y", "--yes", action="store_true", help="Accept all detected AI clients without prompting")
@@ -415,6 +431,32 @@ def main() -> int:
         }
         print(json.dumps(value, indent=2, default=str) if args.json else f"HoloCore Home: {value['home']}\nKnowledge vault: {value['archive']}\nWorld registry: {Path(value['home']) / 'worlds.json'}")
         return 0
+    if args.command == "backup":
+        from . import home_backup
+        home = HomeManager(args.home).home
+        try:
+            if args.backup_command == "create":
+                value = home_backup.create_home_backup(home, args.to)
+            elif args.backup_command == "check":
+                value = home_backup.preview_home_restore(args.file, home)
+            elif args.backup_command == "restore":
+                value = home_backup.preview_home_restore(args.file, home)
+                if args.yes and value["valid"]:
+                    value = home_backup.restore_home_backup(args.file, home)
+                elif value["valid"]:
+                    value["next_step"] = "Nothing was restored. Re-run with --yes to replace this Home's data."
+            elif args.backup_command == "schedule":
+                value = home_backup.configure_schedule(home, folder=args.folder, frequency="daily" if args.daily else "weekly",
+                                                       day=args.day, time=args.time, keep=args.keep)
+            elif args.backup_command == "unschedule":
+                value = home_backup.disable_schedule(home)
+            else:
+                value = home_backup.schedule_status(home)
+        except home_backup.BackupError as exc:
+            print(f"HoloCore backup: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(value, indent=2, default=str))
+        return 0 if value.get("valid", True) else 1
     if args.command in {"worlds", "projects"}:
         value = HomeManager().list_worlds()
         if args.json:
