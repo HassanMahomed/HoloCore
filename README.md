@@ -4,7 +4,7 @@
 
 ![HoloCore Context Engine icon](docs/assets/holocore-icon.png)
 
-**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `1.0.0` brings the Memories workspace, semantic Code Map, guided research and architecture workflows, native Windows setup, recoverable upgrades, and plain-language integrations into one supported release line.
+**HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `1.1.0` adds a desktop Control Centre, Home backups and restore, the Obsidian Board, stronger SQLite reliability, and keeps PowerShell installation as the primary Windows path.
 
 ![HoloCore checks project readiness, uses the Code Map and Knowledge, recalls prior work when relevant, and sends focused context to reduce input tokens](docs/assets/holocore-context-engine-token-savings.png)
 
@@ -12,17 +12,15 @@
 
 The runtime is HoloCore-native. It does not import, launch, or require the original Obsidian Second Brain, Graphify, or MemPalace applications. Those projects were behavioral references for the rewrite and are not runtime components.
 
-## Next release: v1.1
+## Current release: v1.1.0
 
-The [post-v1 roadmap](docs/roadmap.md) covers the native desktop control centre,
-verified connection health, memory review, task context packs, efficient background
-processing, quality measurements, agent handoffs, and backup/restore controls.
-Obsidian and Notion integrations will use the same HoloCore service foundation.
-See [v1.1 implementation status](docs/v1.1.md) for delivered features and remaining gates.
+The [v1.1.0 release notes](docs/v1.1.0.md) describe what ships. The [roadmap](docs/roadmap.md)
+keeps conversation cleanup, incremental background controls, quality measurements,
+memory review, and task context packs in the next development phase. Obsidian and
+Notion integrations use the same HoloCore service foundation.
 
 From a source checkout, run `holocore desktop` to open the native control centre.
-The Setup application also offers **Open control centre**. These additions are
-under development for v1.1 and are not included in the v1.0.1 download.
+The Setup application also offers **Open control centre**.
 
 ## In simple terms
 
@@ -106,7 +104,7 @@ irm https://github.com/HassanMahomed/HoloCore/releases/latest/download/install.p
 
 An MSI installer is being considered for a future release; it is not available yet. Packaging as MSI alone would not remove Windows publisher warnings for direct downloads.
 
-![HoloCore native Windows setup application](docs/assets/holocore-native-setup.png)
+![HoloCore desktop Control Centre showing projects, knowledge, Memories, and AI connections](docs/assets/holocore-control-centre.jpg)
 
 The downloadable Windows executables, checksums, SBOM, and build-provenance records are also available on the [GitHub Releases page](https://github.com/HassanMahomed/HoloCore/releases). See the [Windows installation guide](docs/windows-installation.md) for unattended options, upgrades, and removal.
 

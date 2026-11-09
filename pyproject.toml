@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "holocore"
-version = "1.0.1"
+version = "1.1.0"
 description = "HoloCore Context Engine: local-first project knowledge, code maps, conversation memory, and agent activity"
 requires-python = ">=3.11"
 dependencies = ["pypdf>=5.0"]

@@ -222,9 +222,17 @@ jobs:
         with:
           prerelease: ${{ contains(github.ref_name, '-rc.') }}
           body: |
-            ## Windows release
+            ## HoloCore 1.1.0
 
-            Download `holocore-setup-windows-x64.exe` for the guided installer. SHA-256 checksums, the release manifest, SBOM, and GitHub build provenance are published with every release.
+            This stable release adds the desktop Control Centre, Home backup and restore, the HoloCore Board Obsidian plugin, and SQLite reliability improvements. See the [release notes](https://github.com/HassanMahomed/HoloCore/blob/main/docs/v1.1.0.md).
+
+            ## Windows installation
+
+            **Primary:** PowerShell: `irm https://github.com/HassanMahomed/HoloCore/releases/latest/download/install.ps1 | iex`
+
+            **Alternative:** download `holocore-setup-windows-x64.exe` for guided installation.
+
+            SHA-256 checksums, the release manifest, SBOM, install script, and GitHub build provenance are published with the release.
 
             ## Code signing policy
 

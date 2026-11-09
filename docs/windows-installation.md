@@ -27,7 +27,7 @@ The installer:
 
 The setup application is a self-contained desktop interface. It does not load a web page, remote scripts, fonts, or assets. HoloCore does not install a model runtime or download models.
 
-![HoloCore Setup showing native folder and feature selection](assets/holocore-native-setup.png)
+![HoloCore desktop Control Centre showing a registered project and its local knowledge](assets/holocore-control-centre.jpg)
 
 Open a new terminal after installation, then run:
 
