@@ -6,14 +6,17 @@ import hashlib
 import json
 import re
 import sqlite3
-from contextlib import closing, contextmanager
+from contextlib import closing
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from .sqlite_connections import ThreadConnections
+
 
 SCHEMA_VERSION = 4
+MERGE_BATCH = 500  # Rows per commit when merging a legacy database.
 
 
 _BASE_SCHEMA = """
@@ -259,6 +262,7 @@ class MemoryStore:
             "from_version": None, "to_version": SCHEMA_VERSION,
             "backup": None, "applied": [],
         }
+        self._connections = ThreadConnections(self._connect, self.path)
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
@@ -267,14 +271,8 @@ class MemoryStore:
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
-    @contextmanager
     def _connection(self):
-        db = self._connect()
-        try:
-            with db:
-                yield db
-        finally:
-            db.close()
+        return self._connections.transaction()
 
     def _initialize(self) -> None:
         database_existed = self.path.is_file() and self.path.stat().st_size > 0
@@ -364,7 +362,22 @@ class MemoryStore:
         return backup
 
     def close(self) -> None:
-        """Connections are operation-scoped; provided for lifecycle compatibility."""
+        """Close this thread's reused database connection."""
+        self._connections.close()
+
+    def checkpoint_wal(self) -> dict[str, Any]:
+        """Fold committed WAL changes into the database file without waiting for other programs.
+
+        ``completed`` is False when an open reader or writer kept some changes in the WAL;
+        they stay safely committed there and a later checkpoint folds them in.
+        """
+        try:
+            with self._connection() as db:
+                busy, frames, done = db.execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
+        except sqlite3.Error as exc:
+            return {"completed": False, "error": f"{type(exc).__name__}: {exc}"}
+        frames, done = max(int(frames), 0), max(int(done), 0)  # -1 means the database is not in WAL mode.
+        return {"completed": not busy and done == frames, "wal_frames": frames, "checkpointed_frames": done}
 
     def __enter__(self) -> "MemoryStore":
         return self
@@ -459,7 +472,19 @@ class MemoryStore:
             shard_map: dict[str, str] = {}
             diary_map: dict[str, str] = {}
             with self._connection() as db:
+                pending = 0
+
+                def batch() -> None:
+                    # Commit every MERGE_BATCH rows so a large legacy database never holds the write
+                    # lock for the whole merge. Every write below skips rows already merged, so an
+                    # interrupted merge simply continues when it runs again.
+                    nonlocal pending
+                    pending += 1
+                    if pending >= MERGE_BATCH:
+                        db.commit()
+                        pending = 0
                 for row in source_worlds:
+                    batch()
                     target_world = world_map[row["id"]]
                     before = db.total_changes
                     db.execute(
@@ -468,11 +493,13 @@ class MemoryStore:
                     )
                     counts["worlds"] += int(db.total_changes > before)
                 for row in source_db.execute("SELECT * FROM sectors"):
+                    batch()
                     db.execute(
                         "INSERT OR IGNORE INTO sectors VALUES(?,?,?,?,?,?)",
                         (world_map[row["world_id"]], row["id"], row["display_name"], row["metadata"], row["created_at"], row["updated_at"]),
                     )
                 for row in source_db.execute("SELECT * FROM shards"):
+                    batch()
                     target_world = world_map[row["world_id"]]
                     values = (
                         row["id"], target_world, row["sector_id"], row["content"], row["content_hash"],
@@ -491,6 +518,7 @@ class MemoryStore:
                         ).fetchone()
                         shard_map[row["id"]] = existing["id"] if existing else row["id"]
                 for row in source_db.execute("SELECT * FROM provenance"):
+                    batch()
                     before = db.total_changes
                     db.execute(
                         "INSERT OR IGNORE INTO provenance(shard_id,world_id,source_ref,chunk_index,version_token,metadata,first_seen_at,last_seen_at) VALUES(?,?,?,?,?,?,?,?)",
@@ -498,11 +526,13 @@ class MemoryStore:
                     )
                     counts["provenance"] += int(db.total_changes > before)
                 for row in source_db.execute("SELECT * FROM checkpoints"):
+                    batch()
                     db.execute(
                         "INSERT OR REPLACE INTO checkpoints VALUES(?,?,?,?,?,?)",
                         (world_map[row["world_id"]], row["sector_id"], row["mode"], row["source_ref"], row["cursor"], row["updated_at"]),
                     )
                 for row in source_db.execute("SELECT * FROM diary"):
+                    batch()
                     target_world = world_map[row["world_id"]]
                     before = db.total_changes
                     db.execute(
@@ -516,6 +546,7 @@ class MemoryStore:
                     ).fetchone()
                     diary_map[row["id"]] = existing["id"] if existing else row["id"]
                 for row in source_db.execute("SELECT * FROM diary_provenance"):
+                    batch()
                     db.execute(
                         "INSERT OR IGNORE INTO diary_provenance(diary_id,source_ref,chunk_index,version_token,metadata,first_seen_at,last_seen_at) VALUES(?,?,?,?,?,?,?)",
                         (diary_map[row["diary_id"]], row["source_ref"], row["chunk_index"], row["version_token"], row["metadata"], row["first_seen_at"], row["last_seen_at"]),
@@ -628,7 +659,7 @@ class MemoryStore:
             "WHERE p.world_id=? AND p.source_ref=? AND p.chunk_index=?",
             (world, item.source_ref, item.chunk_index),).fetchone()
         target = db.execute(
-            "SELECT id FROM shards WHERE world_id=? AND sector_id IS ? AND content_hash=?",
+            "SELECT id FROM shards WHERE world_id=? AND ifnull(sector_id,'')=ifnull(?,'') AND content_hash=?",
             (world, item.sector, digest),).fetchone()
         now = _now()
         dedup = target is not None and (existing_source is None or target["id"] != existing_source["shard_id"])
