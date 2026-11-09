@@ -2,17 +2,17 @@
   <title id="title">HoloCore automatic conversation capture, memory refinement, and project Knowledge promotion</title>
   <desc id="desc">Supported transcript checkpoints capture only new messages, preserve a local raw audit, perform one extraction pass, store scoped Memories, and promote useful reviewed details into project Knowledge while Shared remains explicit.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#2a1830"/></linearGradient>
-    <filter id="s"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".3"/></filter>
-    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#f9a8d4"/></marker>
-    <style>.f{font-family:Inter,Segoe UI,Arial,sans-serif}.t{fill:#f8fafc;font-size:30px;font-weight:700}.h{fill:#f8fafc;font-size:18px;font-weight:700}.p{fill:#ddcfdf;font-size:14px}.n{fill:#baa7bd;font-size:12px}.l{stroke:#f9a8d4;stroke-width:3;fill:none;marker-end:url(#a)}.teal{stroke:#5eead4;stroke-width:3;fill:none;marker-end:url(#a)}.dash{stroke:#f9a8d4;stroke-width:2;stroke-dasharray:7 7;fill:none}</style>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1D1B2E"/><stop offset="1" stop-color="#2C2940"/></linearGradient>
+    <filter id="s"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#1D1B2E" flood-opacity=".3"/></filter>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#DA8230"/></marker>
+    <style>.f{font-family:Inter,Segoe UI,Arial,sans-serif}.t{fill:#F3EDE4;font-size:30px;font-weight:700}.h{fill:#F3EDE4;font-size:18px;font-weight:700}.p{fill:#D8CCBD;font-size:14px}.n{fill:#B9A99B;font-size:12px}.l{stroke:#DA8230;stroke-width:3;fill:none;marker-end:url(#a)}.teal{stroke:#F3B33D;stroke-width:3;fill:none;marker-end:url(#a)}.dash{stroke:#DA8230;stroke-width:2;stroke-dasharray:7 7;fill:none}</style>
   </defs>
   <rect width="1200" height="675" fill="url(#bg)"/>
   <text x="60" y="56" class="f t">Session end → local Memories → project Knowledge</text>
   <text x="60" y="85" class="f p">Capture is incremental and retry-safe; useful extraction promotes automatically, but Shared remains an explicit choice.</text>
 
   <g filter="url(#s)">
-    <rect x="45" y="120" width="220" height="145" rx="16" fill="#25325f" stroke="#818cf8"/>
+    <rect x="45" y="120" width="220" height="145" rx="16" fill="#5A2E3F" stroke="#8D3E2C"/>
     <text x="155" y="158" text-anchor="middle" class="f h">1. Automatic trigger</text>
     <text x="155" y="190" text-anchor="middle" class="f p">Claude SessionEnd</text>
     <text x="155" y="218" text-anchor="middle" class="f p">Codex Stop</text>
@@ -20,7 +20,7 @@
   </g>
   <path d="M265 192H305" class="l"/>
   <g filter="url(#s)">
-    <rect x="315" y="110" width="245" height="165" rx="16" fill="#3c273b" stroke="#f472b6"/>
+    <rect x="315" y="110" width="245" height="165" rx="16" fill="#5A2E3F" stroke="#C0521F"/>
     <text x="437" y="148" text-anchor="middle" class="f h">2. Read new messages</text>
     <text x="437" y="180" text-anchor="middle" class="f p">incremental transcript cursor</text>
     <text x="437" y="208" text-anchor="middle" class="f n">user + assistant text only</text>
@@ -29,7 +29,7 @@
   </g>
   <path d="M560 192H600" class="l"/>
   <g filter="url(#s)">
-    <rect x="610" y="110" width="245" height="165" rx="16" fill="#3c273b" stroke="#f472b6"/>
+    <rect x="610" y="110" width="245" height="165" rx="16" fill="#5A2E3F" stroke="#C0521F"/>
     <text x="732" y="148" text-anchor="middle" class="f h">3. Preserve raw audit</text>
     <text x="732" y="180" text-anchor="middle" class="f p">&lt;project&gt;/.holocore</text>
     <text x="732" y="208" text-anchor="middle" class="f p">/raw-chats</text>
@@ -38,7 +38,7 @@
   </g>
   <path d="M855 192H895" class="l"/>
   <g filter="url(#s)">
-    <rect x="905" y="110" width="250" height="165" rx="16" fill="#173456" stroke="#38bdf8"/>
+    <rect x="905" y="110" width="250" height="165" rx="16" fill="#3C3140" stroke="#C0521F"/>
     <text x="1030" y="148" text-anchor="middle" class="f h">4. One extraction pass</text>
     <text x="1030" y="180" text-anchor="middle" class="f p">local deterministic fallback</text>
     <text x="1030" y="208" text-anchor="middle" class="f p">or configured provider</text>
@@ -50,14 +50,14 @@
   <path d="M1030 330H855V370" class="l"/>
 
   <g filter="url(#s)">
-    <rect x="120" y="380" width="450" height="155" rx="18" fill="#4a283e" stroke="#f472b6" stroke-width="2"/>
+    <rect x="120" y="380" width="450" height="155" rx="18" fill="#5A2E3F" stroke="#C0521F" stroke-width="2"/>
     <text x="345" y="419" text-anchor="middle" class="f h">5. Scoped Memories</text>
-    <text x="345" y="450" text-anchor="middle" class="f p">&lt;Home&gt;/Memories/animus.db</text>
+    <text x="345" y="450" text-anchor="middle" class="f p">&lt;Home&gt;/Memories · SQLite database</text>
     <text x="345" y="481" text-anchor="middle" class="f n">deduplicate • provenance • project/group scope</text>
     <text x="345" y="507" text-anchor="middle" class="f n">small retained details ready for later recall</text>
   </g>
   <g filter="url(#s)">
-    <rect x="630" y="380" width="450" height="155" rx="18" fill="#113b39" stroke="#2dd4bf" stroke-width="2"/>
+    <rect x="630" y="380" width="450" height="155" rx="18" fill="#3B2D34" stroke="#F3B33D" stroke-width="2"/>
     <text x="855" y="419" text-anchor="middle" class="f h">6. Project Knowledge promotion</text>
     <text x="855" y="450" text-anchor="middle" class="f p">&lt;Home&gt;/Knowledge/Projects/&lt;project-id&gt;</text>
     <text x="855" y="478" text-anchor="middle" class="f p">/wiki/memory/&lt;date&gt;-&lt;digest&gt;.md</text>
@@ -66,7 +66,7 @@
   <path d="M570 457H630" class="teal"/>
 
   <g filter="url(#s)">
-    <rect x="250" y="575" width="700" height="65" rx="15" fill="#2d2437" stroke="#f9a8d4"/>
+    <rect x="250" y="575" width="700" height="65" rx="15" fill="#2C2940" stroke="#DA8230"/>
     <text x="600" y="602" text-anchor="middle" class="f p">Shared is never automatic • promotion stays reviewable and scoped</text>
     <text x="600" y="625" text-anchor="middle" class="f n">after capture, HoloCore also checks that the project Code Map is fresh</text>
   </g>

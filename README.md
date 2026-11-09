@@ -6,18 +6,24 @@
 
 **HoloCore Context Engine** is a local AI knowledge and activity system for all your projects. Version `1.1.0` adds a desktop Control Centre, Home backups and restore, the Obsidian Board, stronger SQLite reliability, and keeps PowerShell installation as the primary Windows path.
 
-![HoloCore checks project readiness, uses the Code Map and Knowledge, recalls prior work when relevant, and sends focused context to reduce input tokens](docs/assets/holocore-context-engine-token-savings.png)
+![HoloCore copper-and-ink infographic comparing broad project context with its focused Code Map, Knowledge, and Memories retrieval route](docs/assets/holocore-context-engine-token-savings.png)
 
 ![HoloCore Home and project storage model](docs/assets/holocore-home-world-structure.svg)
 
 The runtime is HoloCore-native. It does not import, launch, or require the original Obsidian Second Brain, Graphify, or MemPalace applications. Those projects were behavioral references for the rewrite and are not runtime components.
 
-## Current release: v1.1.0
+## What's new in v1.1.0
 
-The [v1.1.0 release notes](docs/v1.1.0.md) describe what ships. The [roadmap](docs/roadmap.md)
-keeps conversation cleanup, incremental background controls, quality measurements,
-memory review, and task context packs in the next development phase. Obsidian and
-Notion integrations use the same HoloCore service foundation.
+The desktop Control Centre brings project and knowledge browsing, AI connection health,
+Memories, Code Map, and backup and restore into one app. v1.1.0 also ships the HoloCore
+Board for Obsidian and stronger SQLite reliability. Read the [release notes](docs/v1.1.0.md)
+or [download v1.1.0](https://github.com/HassanMahomed/HoloCore/releases/tag/v1.1.0).
+
+## What's next: performance first
+
+The next roadmap phase prioritizes faster incremental processing, safe pause/resume,
+measured retrieval and storage performance, then conversation cleanup, memory review,
+and task-specific context packs. See the [v1.2 roadmap](docs/roadmap.md#v12-performance-first-memory-and-context-workflows).
 
 From a source checkout, run `holocore desktop` to open the native control centre.
 The Setup application also offers **Open control centre**.

@@ -2,24 +2,24 @@
   <title id="title">HoloCore native installation, Home selection, project setup, and AI-client approval</title>
   <desc id="desc">Verify and install HoloCore, choose one private Home, register a project, create Knowledge, Code Map and Memories state, connect selected AI clients, then approve local access.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#12342f"/></linearGradient>
-    <filter id="s"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".28"/></filter>
-    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#5eead4"/></marker>
-    <style>.f{font-family:Inter,Segoe UI,Arial,sans-serif}.t{fill:#f8fafc;font-size:31px;font-weight:700}.h{fill:#f8fafc;font-size:18px;font-weight:700}.p{fill:#d1e4e0;font-size:14px}.n{fill:#9dbbb6;font-size:12px}.l{stroke:#5eead4;stroke-width:3;fill:none;marker-end:url(#a)}</style>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1D1B2E"/><stop offset="1" stop-color="#3B2D34"/></linearGradient>
+    <filter id="s"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#1D1B2E" flood-opacity=".28"/></filter>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#F3B33D"/></marker>
+    <style>.f{font-family:Inter,Segoe UI,Arial,sans-serif}.t{fill:#F3EDE4;font-size:31px;font-weight:700}.h{fill:#F3EDE4;font-size:18px;font-weight:700}.p{fill:#D8CCBD;font-size:14px}.n{fill:#B9A99B;font-size:12px}.l{stroke:#F3B33D;stroke-width:3;fill:none;marker-end:url(#a)}</style>
   </defs>
   <rect width="1200" height="675" fill="url(#bg)"/>
   <text x="60" y="58" class="f t">Install once, choose one Home, connect every project</text>
   <text x="60" y="87" class="f p">Native setup keeps Knowledge, Code Maps, Memories, chats, and AI connections local.</text>
 
   <g filter="url(#s)">
-    <rect x="45" y="130" width="205" height="125" rx="16" fill="#173456" stroke="#38bdf8"/>
+    <rect x="45" y="130" width="205" height="125" rx="16" fill="#3C3140" stroke="#C0521F"/>
     <text x="147" y="170" text-anchor="middle" class="f h">1. Install</text>
-    <text x="147" y="201" text-anchor="middle" class="f p">native Windows setup</text>
-    <text x="147" y="228" text-anchor="middle" class="f n">checksum + signer verified</text>
+    <text x="147" y="201" text-anchor="middle" class="f p">PowerShell or Setup EXE</text>
+    <text x="147" y="228" text-anchor="middle" class="f n">checksums + build provenance</text>
   </g>
   <path d="M250 192H285" class="l"/>
   <g filter="url(#s)">
-    <rect x="295" y="120" width="240" height="145" rx="16" fill="#113b39" stroke="#2dd4bf"/>
+    <rect x="295" y="120" width="240" height="145" rx="16" fill="#3B2D34" stroke="#F3B33D"/>
     <text x="415" y="158" text-anchor="middle" class="f h">2. Choose shared Home</text>
     <text x="415" y="189" text-anchor="middle" class="f p">holocore setup --home &lt;Home&gt;</text>
     <text x="415" y="218" text-anchor="middle" class="f n">one saved choice for all projects</text>
@@ -27,7 +27,7 @@
   </g>
   <path d="M535 192H570" class="l"/>
   <g filter="url(#s)">
-    <rect x="580" y="120" width="260" height="145" rx="16" fill="#193a37" stroke="#2dd4bf"/>
+    <rect x="580" y="120" width="260" height="145" rx="16" fill="#3B2D34" stroke="#F3B33D"/>
     <text x="710" y="158" text-anchor="middle" class="f h">3. Register this project</text>
     <text x="710" y="189" text-anchor="middle" class="f p">Projects/&lt;project-id&gt;</text>
     <text x="710" y="218" text-anchor="middle" class="f n">durable project notes</text>
@@ -35,7 +35,7 @@
   </g>
   <path d="M840 192H875" class="l"/>
   <g filter="url(#s)">
-    <rect x="885" y="110" width="270" height="165" rx="16" fill="#25325f" stroke="#818cf8"/>
+    <rect x="885" y="110" width="270" height="165" rx="16" fill="#5A2E3F" stroke="#8D3E2C"/>
     <text x="1020" y="148" text-anchor="middle" class="f h">4. Build local state</text>
     <text x="910" y="181" class="f p">• CodeMap/graph.json</text>
     <text x="910" y="208" class="f p">• Memories + chat history</text>
@@ -48,21 +48,21 @@
   <path d="M1020 330V365" class="l"/>
 
   <g filter="url(#s)">
-    <rect x="105" y="375" width="400" height="140" rx="17" fill="#26345e" stroke="#818cf8"/>
+    <rect x="105" y="375" width="400" height="140" rx="17" fill="#5A2E3F" stroke="#8D3E2C"/>
     <text x="305" y="414" text-anchor="middle" class="f h">Claude Code</text>
     <text x="305" y="444" text-anchor="middle" class="f p">SessionEnd capture installed</text>
     <text x="305" y="473" text-anchor="middle" class="f p">restart → /mcp → approve HoloCore</text>
     <text x="305" y="496" text-anchor="middle" class="f n">then use /holocore-search</text>
   </g>
   <g filter="url(#s)">
-    <rect x="520" y="375" width="400" height="140" rx="17" fill="#26345e" stroke="#818cf8"/>
+    <rect x="520" y="375" width="400" height="140" rx="17" fill="#5A2E3F" stroke="#8D3E2C"/>
     <text x="720" y="414" text-anchor="middle" class="f h">Codex</text>
     <text x="720" y="444" text-anchor="middle" class="f p">Stop capture installed</text>
     <text x="720" y="473" text-anchor="middle" class="f p">restart → /hooks → trust HoloCore</text>
     <text x="720" y="496" text-anchor="middle" class="f n">then use $holocore-search</text>
   </g>
   <g filter="url(#s)">
-    <rect x="935" y="375" width="220" height="140" rx="17" fill="#26345e" stroke="#818cf8"/>
+    <rect x="935" y="375" width="220" height="140" rx="17" fill="#5A2E3F" stroke="#8D3E2C"/>
     <text x="1045" y="414" text-anchor="middle" class="f h">Other clients</text>
     <text x="1045" y="444" text-anchor="middle" class="f p">native commands</text>
     <text x="1045" y="473" text-anchor="middle" class="f p">project MCP</text>
@@ -71,7 +71,7 @@
 
   <path d="M305 515V555H600" class="l"/><path d="M720 515V555H600" class="l"/><path d="M1045 515V555H600" class="l"/>
   <g filter="url(#s)">
-    <rect x="350" y="565" width="500" height="75" rx="16" fill="#113b39" stroke="#2dd4bf"/>
+    <rect x="350" y="565" width="500" height="75" rx="16" fill="#3B2D34" stroke="#F3B33D"/>
     <text x="600" y="596" text-anchor="middle" class="f h">5. One focused HoloCore experience</text>
     <text x="600" y="621" text-anchor="middle" class="f n">project Knowledge + Shared • Code Map + Memories • explicit client trust</text>
   </g>

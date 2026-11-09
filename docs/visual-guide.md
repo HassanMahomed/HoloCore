@@ -27,7 +27,7 @@ The Windows setup application has four pages:
 
 Nothing is applied before the review step. HoloCore preserves unrelated client configuration and never downloads a model runtime or model weights.
 
-![HoloCore Setup showing detected AI clients and optional features](assets/holocore-native-setup.png)
+![HoloCore Control Centre showing the current desktop layout and local project status](assets/holocore-control-centre.jpg)
 
 ## One-direction retrieval
 
