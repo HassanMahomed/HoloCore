@@ -411,6 +411,7 @@ class NativeSetupApp:
         self.state = initial_native_state(home, project)
         self.step = 0
         self.applying = False
+        self.switched_to_control_centre = False
         self.plan: dict[str, Any] | None = None
         self.client_details = self.state["clients"]
         self.client_vars = {name: tk.BooleanVar(value=False) for name in CLIENT_NAMES}
@@ -522,15 +523,15 @@ class NativeSetupApp:
     def _open_desktop(self) -> None:
         if self.applying:
             return
-        command = [sys.executable]
-        if not getattr(sys, "frozen", False):
-            windowed = Path(sys.executable).with_name("pythonw.exe")  # No console window from a source checkout.
-            command = [str(windowed) if windowed.is_file() else sys.executable, "-m", "holocore.setup_app"]
-        command.append("--desktop")
-        for flag, value in (("--home", self.home_var.get().strip()), ("--project", self.project_var.get().strip())):
-            if value:
-                command.extend([flag, value])
-        subprocess.Popen(command, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        self.switched_to_control_centre = True
+        from holocore.desktop_app import DesktopControlCentre
+
+        for child in self.root.winfo_children():
+            child.destroy()
+        DesktopControlCentre(
+            self.root, self.project_var.get().strip() or Path.cwd(),
+            home=self.home_var.get().strip() or None,
+        )
 
     def _clear_content(self) -> ttk.Frame:
         for child in self.content.winfo_children():
@@ -695,7 +696,7 @@ class NativeSetupApp:
         tk.Label(panel, text="HoloCore is ready", bg="#F0FDF4", fg=COLORS["ink"], font=("Segoe UI Semibold", 24)).pack(anchor="w")
         tk.Label(panel, text=result["next"], bg="#F0FDF4", fg=COLORS["muted"], font=("Segoe UI", 10), wraplength=560, justify="left").pack(anchor="w", pady=(8, 0))
         self.back_button.configure(state="disabled")
-        self.next_button.configure(text="Close", state="normal", command=self.root.destroy)
+        self.next_button.configure(text="Open control centre", state="normal", command=self._open_desktop)
 
     def _show_applying(self) -> None:
         body = self._clear_content()
@@ -722,6 +723,8 @@ class NativeSetupApp:
         self.root.after(0, lambda: self._discovery_ready(state))
 
     def _discovery_ready(self, state: dict[str, Any]) -> None:
+        if self.switched_to_control_centre:
+            return
         self.state = {**state, "detecting": False}
         self.client_details = state["clients"]
         if self.project_var.get().strip():
@@ -734,6 +737,8 @@ class NativeSetupApp:
             self.show_step(self.step)
 
     def _discovery_failed(self, detail: str) -> None:
+        if self.switched_to_control_centre:
+            return
         self.state["detecting"] = False
         self.status_var.set("Detection unavailable; manual setup is still available")
 
@@ -902,6 +907,10 @@ def main(argv: list[str] | None = None) -> int:
             root.destroy()
             return 1
         return 0
+    installed_setup = (_default_install_dir() / "HoloCore Setup.exe").resolve()
+    if Path(sys.executable).resolve() == installed_setup and (installed_setup.parent / "holocore.exe").is_file():
+        from holocore.desktop_app import launch_desktop_app
+        return launch_desktop_app()
     try:
         install_embedded_release()
     except OSError as exc:

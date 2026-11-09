@@ -110,6 +110,7 @@ class DesktopControlCentre:
     def __init__(self, window: tk.Tk, root: str | Path, *, home: str | Path | None = None, autoload: bool = True):
         self.window = window
         self.home = home
+        self.project_root = Path(root).expanduser().resolve()
         self.service = DesktopService(root, home)
         self.events = queue.Queue()
         self.busy = False
@@ -228,6 +229,9 @@ class DesktopControlCentre:
         self.refresh_button = ttk.Button(nav, text="Refresh", style="NavAction.TButton", command=self.refresh)
         self.refresh_button.pack(side="bottom", fill="x", padx=self.px(22), pady=(self.px(10), self.px(24)))
         self.action_buttons.append(self.refresh_button)
+        self.setup_button = ttk.Button(nav, text="Setup", style="NavAction.TButton", command=self.open_setup)
+        self.setup_button.pack(side="bottom", fill="x", padx=self.px(22), pady=(self.px(10), 0))
+        self.action_buttons.append(self.setup_button)
         self.project_label = tk.Label(nav, text=self.service.world, bg=c["navy"], fg="#FFFFFF", font=(BOLD, 11),
                                       wraplength=self.px(190), justify="left", anchor="w")
         self.project_label.pack(side="bottom", fill="x", padx=self.px(22))
@@ -552,6 +556,18 @@ class DesktopControlCentre:
         self.closed = True
         self.window.after_cancel(self.poll_id)
         self.window.destroy()
+
+    def open_setup(self) -> None:
+        """Switch this app window to the first-run/setup workflow."""
+        if self.busy:
+            return
+        self.closed = True
+        self.window.after_cancel(self.poll_id)
+        for child in self.window.winfo_children():
+            child.destroy()
+        from .setup_app import NativeSetupApp
+
+        NativeSetupApp(self.window, home=self.home, project=self.project_root)
 
     # Home, projects, connections, storage ------------------------------------
     def show_dashboard(self, result: dict) -> None:
