@@ -11,6 +11,7 @@
 | v1.1 | Local Control Centre, operational visibility, and durable storage/recovery foundations | In progress |
 | v1.2 | Obsidian integration, memory review, and task context packs | Planned |
 | v1.3 | Notion selected-page sync, agent handoffs, and cross-project sharing | Planned |
+| v1.4 | Windows MSI packaging and managed-install lifecycle | Future consideration |
 
 ## v1.0 and v1.0.1 release status
 
@@ -23,6 +24,7 @@ The active v1.1 work brings setup, health, performance, backup, and recovery int
 Planned outcomes:
 
 - One Control Centre view for configured AI connections, capture health, processing status, performance and quality measures, and recovery actions.
+- Search and review captured chat history, then delete conversations that are no longer needed with a clear preview of linked memories and Knowledge entries affected.
 - Connection health that distinguishes configured from connected and reports the last successful capture, with a user-invoked Test action.
 - Incremental processing, caching, and clear busy/pause behavior across supported capture and indexing work.
 - A performance and quality dashboard for latency, token use, freshness, and relevance, with metric definitions and source timestamps.
@@ -40,6 +42,10 @@ Early v1.2 work: the [HoloCore Board](obsidian-board.md) Obsidian plugin, a read
 ## v1.3 — Notion and collaborative handoffs
 
 Planned work adds an explicitly selected-page Notion connector and synchronization, plus agent handoffs that preserve decisions, affected files, tests, blockers, and next steps. Cross-project sharing will remain scoped and reviewable, with provenance and explicit conflict handling. Further efficiency work will follow measured bottlenecks.
+
+## v1.4 — Windows installer packaging (future consideration)
+
+Evaluate an MSI package with reliable upgrade, repair, rollback, and uninstall behavior. PowerShell remains the primary Windows installation path and the standalone Setup EXE remains the secondary option. MSI packaging does not itself establish a trusted publisher or remove SmartScreen warnings for unsigned direct downloads; signing and distribution remain separate decisions.
 
 ## Roadmap status and scope
 

@@ -1,14 +1,18 @@
 # Install HoloCore on Windows
 
-## Fastest installation
+## Primary installation: PowerShell
 
-Download `holocore-setup-windows-x64.exe` from the GitHub release and double-click it. This single executable carries and installs the HoloCore engine, adds it to the user PATH, creates the Start menu shortcut, and then opens the four-step setup window.
-
-For managed or command-line deployment, open PowerShell and run:
+Open PowerShell and run:
 
 ```powershell
 irm https://github.com/HassanMahomed/HoloCore/releases/latest/download/install.ps1 | iex
 ```
+
+## Alternative installation: standalone Setup EXE
+
+Download `holocore-setup-windows-x64.exe` from the GitHub release and double-click it. This executable carries and installs the HoloCore engine, adds it to the user PATH, creates Start menu shortcuts, and opens the setup window. Windows may show **Unknown publisher** because the community executable is unsigned; verify the download is from the official HoloCore GitHub repository before choosing **Run anyway**.
+
+MSI packaging is a possible future distribution option, but is not available in the current release. An MSI alone would not remove publisher warnings for direct downloads.
 
 The installer:
 
