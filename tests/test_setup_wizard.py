@@ -173,7 +173,34 @@ def test_native_setup_executable_installs_its_embedded_engine(tmp_path: Path) ->
     assert (install_dir / "install.ps1").read_text(encoding="utf-8").startswith("param")
 
 
-def test_native_uninstaller_removes_only_application_files(tmp_path: Path) -> None:
+def test_setup_adds_board_plugin_only_to_chosen_vaults(tmp_path: Path, isolated_holocore_home: Path) -> None:
+    chosen, other = tmp_path / "Brain", tmp_path / "Other"
+    for vault in (chosen, other):
+        (vault / ".obsidian").mkdir(parents=True)
+    payload = {"home": str(isolated_holocore_home), "project": "", "clients": [], "model": "",
+               "obsidian_vaults": [str(chosen)]}
+    plan = build_setup_plan(payload)
+    assert plan["obsidian_vaults"] == [str(chosen.resolve())]
+    assert "Add the HoloCore Board plugin to Obsidian vault: Brain" in plan["actions"]
+    with pytest.raises(ValueError, match="Not an Obsidian vault"):
+        build_setup_plan({**payload, "obsidian_vaults": [str(tmp_path / "plain")]})
+
+    result = apply_setup(payload)
+    assert result["obsidian_plugin"][0]["vault"] == str(chosen.resolve())
+    assert (chosen / ".obsidian" / "plugins" / "holocore-board" / "main.js").is_file()
+    assert not (other / ".obsidian" / "plugins").exists()
+
+
+def test_native_uninstaller_removes_only_application_files(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("APPDATA", str(tmp_path / "AppData"))  # Never touch the real Obsidian vault list.
+    vault = tmp_path / "Vault"
+    plugin = vault / ".obsidian" / "plugins" / "holocore-board"
+    plugin.mkdir(parents=True)
+    (plugin / "main.js").write_text("", encoding="utf-8")
+    (vault / "note.md").write_text("kept", encoding="utf-8")
+    registry = tmp_path / "AppData" / "obsidian" / "obsidian.json"
+    registry.parent.mkdir(parents=True)
+    registry.write_text(json.dumps({"vaults": {"v": {"path": str(vault)}}}), encoding="utf-8")
     install_dir = tmp_path / "Programs" / "HoloCore"
     home = tmp_path / "HoloCore Home"
     project = tmp_path / "Project"
@@ -196,6 +223,8 @@ def test_native_uninstaller_removes_only_application_files(tmp_path: Path) -> No
     assert not install_dir.exists()
     assert (home / "memories.db").read_bytes() == b"memory"
     assert (project / "source.py").is_file()
+    assert result["obsidian_plugin_removed"] == [str(vault)] and not plugin.exists()
+    assert (vault / "note.md").read_text(encoding="utf-8") == "kept"
 
 
 def test_native_uninstaller_rejects_unrelated_directory(tmp_path: Path) -> None:

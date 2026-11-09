@@ -201,6 +201,17 @@ def main() -> int:
     global_graph.add_argument("--output")
     obsidian_vault = sub.add_parser("obsidian-vault", help="Build the Obsidian vault view of all registered Worlds")
     obsidian_vault.add_argument("--output", help="Optional output folder; defaults to HoloCore Obsidian Vault in Home")
+    board = sub.add_parser("board", help="Print the flow board data (projects, AI sessions, memories, files) as JSON")
+    board.add_argument("--home", help="HoloCore Home folder (default: the selected Home)")
+    board.add_argument("--project", help="Only this registered project id")
+    board.add_argument("--days", type=int, default=7, help="Sessions active in the last N days (0 = all time)")
+    board.add_argument("--limit", type=int, default=30, help="Most recent sessions to include")
+    board.add_argument("--show-noise", action="store_true", help="Include short or mechanical memory fragments")
+    obsidian_plugin = sub.add_parser("obsidian-plugin", help="Install or remove the HoloCore board plugin in Obsidian vaults")
+    plugin_sub = obsidian_plugin.add_subparsers(dest="plugin_command", required=True)
+    plugin_sub.add_parser("vaults", help="List Obsidian vaults on this computer and whether the plugin is installed")
+    plugin_sub.add_parser("install", help="Install the plugin into a vault").add_argument("--vault", required=True)
+    plugin_sub.add_parser("uninstall", help="Remove the plugin from a vault").add_argument("--vault", required=True)
     watch = sub.add_parser("watch", help="Automatically refresh every World and the Obsidian vault")
     watch.add_argument("--home", help="Shared HoloCore Home directory")
     watch.add_argument("--interval", type=float, default=30.0, help="Polling interval in seconds (default: 30)")
@@ -477,6 +488,29 @@ def main() -> int:
         manager = HomeManager()
         value = build_obsidian_vault(manager.home, output=args.output)
         print(json.dumps(value, indent=2, default=str) if args.json else f"Obsidian vault written to {value['path']}")
+        return 0
+    if args.command == "board":
+        from .board import build_board
+        value = build_board(args.home, project=args.project, days=args.days or None, limit=args.limit,
+                            hide_noise=not args.show_noise)
+        # Always UTF-8: the Obsidian plugin decodes it so, and a Windows pipe defaults to the ANSI code page.
+        sys.stdout.flush()
+        sys.stdout.buffer.write((json.dumps(value, ensure_ascii=False, default=str) + "\n").encode("utf-8"))
+        sys.stdout.buffer.flush()
+        return 0
+    if args.command == "obsidian-plugin":
+        from . import obsidian_plugin
+        try:
+            if args.plugin_command == "vaults":
+                value = {"vaults": obsidian_plugin.obsidian_vaults()}
+            elif args.plugin_command == "install":
+                value = obsidian_plugin.install_plugin(args.vault)
+            else:
+                value = obsidian_plugin.uninstall_plugin(args.vault)
+        except obsidian_plugin.PluginError as exc:
+            print(f"HoloCore Obsidian plugin: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(value, indent=2, default=str))
         return 0
     if args.command == "watch":
         from .obsidian_watch import install_windows_task, uninstall_windows_task, watch_home

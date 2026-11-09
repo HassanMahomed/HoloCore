@@ -35,6 +35,8 @@ Planned work starts with an Obsidian plugin and a reviewable memory workflow. Us
 
 Incremental processing and caching improvements continue where v1.1 measurements show remaining cost or freshness problems.
 
+Early v1.2 work: the [HoloCore Board](obsidian-board.md) Obsidian plugin, a read-only flow board of projects, AI sessions, memories, and changed files, installed per vault by Setup. It is in development and not released.
+
 ## v1.3 — Notion and collaborative handoffs
 
 Planned work adds an explicitly selected-page Notion connector and synchronization, plus agent handoffs that preserve decisions, affected files, tests, blockers, and next steps. Cross-project sharing will remain scoped and reviewable, with provenance and explicit conflict handling. Further efficiency work will follow measured bottlenecks.

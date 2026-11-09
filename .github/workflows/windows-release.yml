@@ -48,6 +48,7 @@ jobs:
           --icon docs/assets/holocore-icon.ico
           --paths src
           --collect-submodules holocore
+          --add-data "src/holocore/obsidian_plugin;holocore/obsidian_plugin"
           src/holocore/__main__.py
       - name: Detect optional release signing credentials
         if: startsWith(github.ref, 'refs/tags/')
@@ -90,6 +91,7 @@ jobs:
           --add-data "docs/assets/holocore-icon-48.png;holocore-assets"
           --add-data "docs/assets/holocore-icon-96.png;holocore-assets"
           --add-data "install.ps1;holocore-assets"
+          --add-data "src/holocore/obsidian_plugin;holocore/obsidian_plugin"
           --add-binary "dist/holocore-windows-x64.exe;holocore-payload"
           src/holocore/setup_app.py
       - name: Sign setup executable
@@ -173,6 +175,17 @@ jobs:
           if (-not (Test-Path -LiteralPath (Join-Path $programs 'HoloCore Control Centre.lnk'))) { throw 'Control Centre shortcut was not created.' }
           & (Join-Path $install 'holocore.exe') --root $project --json status | Out-Host
           if ($LASTEXITCODE -ne 0) { throw 'Installed CLI status failed.' }
+          $vault = Join-Path $env:RUNNER_TEMP 'holocore-obsidian-vault'
+          New-Item -ItemType Directory -Force -Path (Join-Path $vault '.obsidian') | Out-Null
+          & (Join-Path $install 'holocore.exe') obsidian-plugin install --vault $vault | Out-Host
+          if ($LASTEXITCODE -ne 0) { throw 'Obsidian board plugin install failed.' }
+          foreach ($file in 'manifest.json', 'main.js', 'styles.css', 'data.json') {
+            if (-not (Test-Path -LiteralPath (Join-Path $vault ".obsidian\plugins\holocore-board\$file"))) { throw "Obsidian board plugin is missing $file." }
+          }
+          & (Join-Path $install 'holocore.exe') board --days 0 | ConvertFrom-Json | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Board data command failed.' }
+          & (Join-Path $install 'holocore.exe') obsidian-plugin uninstall --vault $vault | Out-Host
+          if (Test-Path -LiteralPath (Join-Path $vault '.obsidian\plugins\holocore-board')) { throw 'Obsidian board plugin was not removed.' }
           & .\install.ps1 -Version $releaseTag -Yes -UpgradeOnly -InstallDir $install -ReleaseDirectory .\dist -Home $lifecycleHome
           if (-not (Test-Path -LiteralPath (Join-Path $install 'holocore.exe.previous'))) { throw 'Upgrade did not retain rollback engine.' }
           & .\install.ps1 -Rollback -InstallDir $install

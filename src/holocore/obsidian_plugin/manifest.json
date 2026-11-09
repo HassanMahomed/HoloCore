@@ -1,0 +1,9 @@
+{
+  "id": "holocore-board",
+  "name": "HoloCore Board",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "See HoloCore's projects, AI sessions, memories, and changed files as one connected flow board.",
+  "author": "HoloCore Contributors",
+  "isDesktopOnly": true
+}

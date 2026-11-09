@@ -20,6 +20,7 @@ from .folder_layout import HomeLayout
 from .home import HomeManager
 from .install import detect_installed_clients
 from .local_models import LocalModelManager
+from .obsidian_plugin import install_plugin
 
 
 CLIENT_NAMES = ("claude", "codex", "cursor", "gemini", "opencode")
@@ -68,6 +69,10 @@ def build_setup_plan(payload: dict[str, Any]) -> dict[str, Any]:
     if clients and project is None:
         raise ValueError("Choose a project folder before connecting AI tools.")
     model = str(payload.get("model") or "").strip() or None
+    vaults = list(dict.fromkeys(str(_resolved(item)) for item in payload.get("obsidian_vaults", []) if str(item).strip()))
+    for vault in vaults:
+        if not (Path(vault) / ".obsidian").is_dir():
+            raise ValueError(f"Not an Obsidian vault (no .obsidian folder): {vault}")
     layout = HomeLayout(home)
     paths: dict[str, str] = {
         "HoloCore Home": str(home),
@@ -99,10 +104,12 @@ def build_setup_plan(payload: dict[str, Any]) -> dict[str, Any]:
         actions.append("Use deterministic extraction (no local model selected)")
     if bool(payload.get("auto_update", False)):
         actions.append("Enable one lightweight update check per active day")
+    for vault in vaults:
+        actions.append(f"Add the HoloCore Board plugin to Obsidian vault: {Path(vault).name}")
     return {
         "home": str(home), "project": str(project) if project else "", "clients": clients,
         "build_code_map": bool(payload.get("build_code_map", True)), "model": model,
-        "auto_update": bool(payload.get("auto_update", False)),
+        "auto_update": bool(payload.get("auto_update", False)), "obsidian_vaults": vaults,
         "paths": paths, "actions": actions,
     }
 
@@ -116,6 +123,8 @@ def _write_setup_journal(path: Path, value: dict[str, Any]) -> None:
 
 def _setup_operation_id(plan: dict[str, Any]) -> str:
     contract = {key: plan[key] for key in ("home", "project", "clients", "build_code_map", "model", "auto_update")}
+    if plan.get("obsidian_vaults"):  # Only when chosen, so earlier setup journals still resume.
+        contract["obsidian_vaults"] = plan["obsidian_vaults"]
     return hashlib.sha256(json.dumps(contract, sort_keys=True).encode("utf-8")).hexdigest()[:20]
 
 
@@ -184,11 +193,14 @@ def apply_setup(payload: dict[str, Any]) -> dict[str, Any]:
     update_result = run_step(
         "auto_update", lambda: configure_auto_update(home, enabled=plan["auto_update"])
     )
+    plugin_result = run_step("obsidian_plugin", lambda: [install_plugin(vault) for vault in plan["obsidian_vaults"]]) \
+        if plan["obsidian_vaults"] else []
     journal.update({"state": "complete", "current_step": None, "error": None})
     _write_setup_journal(journal_path, journal)
     return {
         "applied": True, "plan": plan, "home": home_result,
         "project": project_result, "local_model": model_result, "auto_update": update_result,
+        "obsidian_plugin": plugin_result,
         "resumed": resumed, "journal": str(journal_path),
         "next": "Open the selected AI tool in your project, then run `holocore status`.",
     }

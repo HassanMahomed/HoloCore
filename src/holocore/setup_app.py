@@ -17,6 +17,7 @@ from typing import Any
 
 from holocore import __version__
 from holocore.home import HomeManager
+from holocore.obsidian_plugin import obsidian_vaults, remove_from_all_vaults
 from holocore.setup_wizard import (
     CLIENT_NAMES,
     apply_setup,
@@ -190,10 +191,11 @@ def uninstall_native_installation(install_dir: str | Path | None = None) -> dict
     destination = Path(install_dir or _default_install_dir()).resolve()
     _validate_uninstall_directory(destination)
     shell = _remove_windows_shell_integration(destination)
+    plugins = remove_from_all_vaults()  # The plugin cannot work without the engine; notes are untouched.
     removed = destination.is_dir()
     if removed:
         shutil.rmtree(destination)
-    return {"uninstalled": removed, "install_dir": str(destination), "data_preserved": True, **shell}
+    return {"uninstalled": removed, "install_dir": str(destination), "data_preserved": True, **shell, **plugins}
 
 
 def _queue_worker_cleanup(worker_path: Path) -> None:
@@ -417,6 +419,8 @@ class NativeSetupApp:
         self.map_var = tk.BooleanVar(value=True)
         self.update_var = tk.BooleanVar(value=False)
         self.model_var = tk.StringVar(value="")
+        self.vaults = [row for row in obsidian_vaults() if row["available"]]
+        self.vault_vars = {row["path"]: tk.BooleanVar(value=False) for row in self.vaults}  # Opt-in per vault.
         self.status_var = tk.StringVar(value="Detecting AI tools and local models…")
         self._icon: tk.PhotoImage | None = None
         self._configure_window()
@@ -573,8 +577,24 @@ class NativeSetupApp:
         self._field(body, "First project", self.project_var, lambda: self._browse(self.project_var, "Choose your first project"))
         ttk.Label(body, text="Optional if you only want to create the Second Brain now. A project is required to connect AI tools.", style="Subtitle.TLabel", wraplength=620).pack(anchor="w", pady=(6, 0))
 
+    def _scrollable(self, body: ttk.Frame) -> ttk.Frame:
+        """A vertically scrolling area for pages longer than the window."""
+        canvas = tk.Canvas(body, bg=COLORS["panel"], highlightthickness=0)
+        scroll = ttk.Scrollbar(body, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas, style="Panel.TFrame")
+        inner.bind("<Configure>", lambda _event: canvas.configure(scrollregion=canvas.bbox("all")))
+        window = canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.bind("<Configure>", lambda event: canvas.itemconfigure(window, width=event.width))
+        canvas.configure(yscrollcommand=scroll.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+        wheel = lambda event: canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
+        canvas.bind("<Enter>", lambda _event: canvas.bind_all("<MouseWheel>", wheel))
+        canvas.bind("<Leave>", lambda _event: canvas.unbind_all("<MouseWheel>"))
+        return inner
+
     def _show_features(self) -> None:
-        body = self._clear_content()
+        body = self._scrollable(self._clear_content())
         self._heading(body, "Select AI tools and features", "Detected tools are marked below. HoloCore changes only the integrations you select and preserves unrelated settings.")
         tools = ttk.Frame(body, style="Panel.TFrame")
         tools.pack(fill="x")
@@ -594,6 +614,14 @@ class NativeSetupApp:
         ttk.Label(body, text="Indexes project structure locally. It can also be built later.", style="Subtitle.TLabel").pack(anchor="w", padx=24)
         ttk.Checkbutton(body, text="Enable lightweight daily update checks", variable=self.update_var).pack(anchor="w", pady=(14, 4))
         ttk.Label(body, text="Checks only during active sessions; no resident background service.", style="Subtitle.TLabel").pack(anchor="w", padx=24)
+        if self.vaults:
+            ttk.Separator(body).pack(fill="x", pady=14)
+            ttk.Label(body, text="Add the HoloCore Board to Obsidian", style="Section.TLabel").pack(anchor="w")
+            ttk.Label(body, text="A read-only view of your projects, AI sessions, memories, and changed files. Uninstalling HoloCore removes it again.",
+                      style="Subtitle.TLabel", wraplength=620, justify="left").pack(anchor="w", pady=(2, 4))
+            for row in self.vaults:
+                ttk.Checkbutton(body, text=f"{row['name']}   ({row['path']})" + ("  · already added" if row["installed"] else ""),
+                                variable=self.vault_vars[row["path"]]).pack(anchor="w", pady=1)
 
     def _show_model(self) -> None:
         body = self._clear_content()
@@ -622,6 +650,7 @@ class NativeSetupApp:
             "clients": [name for name in CLIENT_NAMES if self.client_vars[name].get()],
             "build_code_map": self.map_var.get(), "auto_update": self.update_var.get(),
             "model": self.model_var.get(),
+            "obsidian_vaults": [path for path, variable in self.vault_vars.items() if variable.get()],
         }
 
     def _show_review(self) -> None:
