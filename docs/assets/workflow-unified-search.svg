@@ -2,33 +2,33 @@
   <title id="title">HoloCore check-first Code Map, Knowledge, Memories, and exact-source route</title>
   <desc id="desc">HoloCore checks the active project and Code Map, searches project and Shared Knowledge once, optionally recalls scoped Memories once, and returns exact sources without recursion.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#102744"/></linearGradient>
-    <filter id="s"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".28"/></filter>
-    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#7dd3fc"/></marker>
-    <style>.f{font-family:Inter,Segoe UI,Arial,sans-serif}.t{fill:#f8fafc;font-size:31px;font-weight:700}.h{fill:#f8fafc;font-size:18px;font-weight:700}.p{fill:#c8d6e8;font-size:14px}.n{fill:#9fb3ca;font-size:12px}.l{stroke:#7dd3fc;stroke-width:3;fill:none;marker-end:url(#a)}.skip{stroke:#f9a8d4;stroke-width:2;stroke-dasharray:7 7;fill:none;marker-end:url(#a)}</style>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1D1B2E"/><stop offset="1" stop-color="#2C2940"/></linearGradient>
+    <filter id="s"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#1D1B2E" flood-opacity=".28"/></filter>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#C0521F"/></marker>
+    <style>.f{font-family:Inter,Segoe UI,Arial,sans-serif}.t{fill:#F3EDE4;font-size:31px;font-weight:700}.h{fill:#F3EDE4;font-size:18px;font-weight:700}.p{fill:#D8CCBD;font-size:14px}.n{fill:#B9A99B;font-size:12px}.l{stroke:#C0521F;stroke-width:3;fill:none;marker-end:url(#a)}.skip{stroke:#DA8230;stroke-width:2;stroke-dasharray:7 7;fill:none;marker-end:url(#a)}</style>
   </defs>
   <rect width="1200" height="675" fill="url(#bg)"/>
   <text x="60" y="58" class="f t">Check first, then retrieve in one direction</text>
   <text x="60" y="87" class="f p">Project Code Map → project + Shared Knowledge → Memories only when needed → exact sources</text>
 
   <g filter="url(#s)">
-    <rect x="45" y="135" width="170" height="120" rx="16" fill="#173456" stroke="#38bdf8"/>
+    <rect x="45" y="135" width="170" height="120" rx="16" fill="#3C3140" stroke="#C0521F"/>
     <text x="130" y="173" text-anchor="middle" class="f h">Question</text>
     <text x="130" y="204" text-anchor="middle" class="f p">one request</text>
     <text x="130" y="231" text-anchor="middle" class="f n">CLI • command • MCP</text>
   </g>
   <path d="M215 195H250" class="l"/>
   <g filter="url(#s)">
-    <rect x="260" y="120" width="225" height="150" rx="16" fill="#173456" stroke="#38bdf8"/>
+    <rect x="260" y="120" width="225" height="150" rx="16" fill="#3C3140" stroke="#C0521F"/>
     <text x="372" y="158" text-anchor="middle" class="f h">1. Check first</text>
-    <text x="372" y="188" text-anchor="middle" class="f p">World paths + freshness</text>
-    <text x="372" y="216" text-anchor="middle" class="f n">primary Atlas:</text>
-    <text x="372" y="239" text-anchor="middle" class="f n">graphify-out/graph.json</text>
-    <text x="372" y="260" text-anchor="middle" class="f n">refresh when stale</text>
+    <text x="372" y="188" text-anchor="middle" class="f p">Project paths + freshness</text>
+    <text x="372" y="216" text-anchor="middle" class="f n">Code Map index:</text>
+    <text x="372" y="239" text-anchor="middle" class="f n">Projects/&lt;project-id&gt;/CodeMap/</text>
+    <text x="372" y="260" text-anchor="middle" class="f n">graph.json · refresh when stale</text>
   </g>
   <path d="M485 195H520" class="l"/>
   <g filter="url(#s)">
-    <rect x="530" y="120" width="225" height="150" rx="16" fill="#25325f" stroke="#818cf8"/>
+    <rect x="530" y="120" width="225" height="150" rx="16" fill="#5A2E3F" stroke="#8D3E2C"/>
     <text x="642" y="158" text-anchor="middle" class="f h">2. Code Map first</text>
     <text x="642" y="188" text-anchor="middle" class="f p">files + symbols</text>
     <text x="642" y="216" text-anchor="middle" class="f p">paths + relationships</text>
@@ -36,20 +36,20 @@
   </g>
   <path d="M755 195H790" class="l"/>
   <g filter="url(#s)">
-    <rect x="800" y="110" width="355" height="170" rx="16" fill="#113b39" stroke="#2dd4bf"/>
+    <rect x="800" y="110" width="355" height="170" rx="16" fill="#3B2D34" stroke="#F3B33D"/>
     <text x="977" y="148" text-anchor="middle" class="f h">3. Knowledge second</text>
-    <rect x="825" y="171" width="185" height="75" rx="11" fill="#173f3c" stroke="#5eead4"/>
-    <text x="917" y="200" text-anchor="middle" class="f p">Worlds/&lt;world-id&gt;</text>
+    <rect x="825" y="171" width="185" height="75" rx="11" fill="#3B2D34" stroke="#F3B33D"/>
+    <text x="917" y="200" text-anchor="middle" class="f p">Projects/&lt;project-id&gt;</text>
     <text x="917" y="225" text-anchor="middle" class="f n">project knowledge</text>
-    <rect x="1025" y="171" width="105" height="75" rx="11" fill="#173f3c" stroke="#5eead4"/>
+    <rect x="1025" y="171" width="105" height="75" rx="11" fill="#3B2D34" stroke="#F3B33D"/>
     <text x="1077" y="200" text-anchor="middle" class="f p">Shared</text>
     <text x="1077" y="225" text-anchor="middle" class="f n">explicit</text>
-    <text x="977" y="267" text-anchor="middle" class="f n">one bounded lookup; no other Worlds</text>
+    <text x="977" y="267" text-anchor="middle" class="f n">one bounded lookup; no other projects</text>
   </g>
 
   <path d="M977 280V335H760V365" class="l"/>
   <g filter="url(#s)">
-    <rect x="620" y="375" width="280" height="140" rx="16" fill="#4a283e" stroke="#f472b6"/>
+    <rect x="620" y="375" width="280" height="140" rx="16" fill="#5A2E3F" stroke="#C0521F"/>
     <text x="760" y="413" text-anchor="middle" class="f h">4. Memories third</text>
     <text x="760" y="443" text-anchor="middle" class="f p">only when history matters</text>
     <text x="760" y="470" text-anchor="middle" class="f n">previous work • errors • chats</text>
@@ -57,7 +57,7 @@
   </g>
   <path d="M620 445H555" class="l"/>
   <g filter="url(#s)">
-    <rect x="280" y="375" width="265" height="140" rx="16" fill="#16345a" stroke="#38bdf8"/>
+    <rect x="280" y="375" width="265" height="140" rx="16" fill="#3C3140" stroke="#C0521F"/>
     <text x="412" y="413" text-anchor="middle" class="f h">5. Exact sources</text>
     <text x="412" y="443" text-anchor="middle" class="f p">open identified files</text>
     <text x="412" y="470" text-anchor="middle" class="f n">merge + label evidence</text>
@@ -70,9 +70,9 @@
   <path d="M1000 425V550H790" class="skip"/>
   <path d="M760 515V550H790" class="l"/>
   <g filter="url(#s)">
-    <rect x="420" y="560" width="370" height="75" rx="16" fill="#173456" stroke="#38bdf8"/>
+    <rect x="420" y="560" width="370" height="75" rx="16" fill="#3C3140" stroke="#C0521F"/>
     <text x="605" y="590" text-anchor="middle" class="f h">One focused result</text>
     <text x="605" y="615" text-anchor="middle" class="f n">each selected stage once • source-labelled • no recursive route</text>
   </g>
-  <text x="600" y="658" text-anchor="middle" class="f n">.holocore/atlas.json is an internal compatibility mirror, not the primary user-facing Atlas path</text>
+  <text x="600" y="658" text-anchor="middle" class="f n">Legacy path aliases are for compatibility; Code Map is the current product name</text>
 </svg>
